@@ -1,0 +1,40 @@
+{
+  "name": "back-end_wattvision",
+  "version": "1.0.0",
+  "description": "Backend do sistema de monitoramento energético Watt Vision",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "dev": "nodemon server.js",
+    "start": "node server.js",
+    "db:test": "node src/config/testDatabase.js",
+    "test": "echo \"Testes ainda não configurados\""
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/DiegodelPadua/beck-end_wattVision.git"
+  },
+  "keywords": [
+    "iot",
+    "energia",
+    "esp32",
+    "mqtt",
+    "wattvision"
+  ],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/DiegodelPadua/beck-end_wattVision/issues"
+  },
+  "homepage": "https://github.com/DiegodelPadua/beck-end_wattVision#readme",
+  "dependencies": {
+    "cors": "^2.8.6",
+    "dotenv": "^18.0.4",
+    "express": "^5.2.1",
+    "mqtt": "^5.16.0",
+    "mysql2": "^3.24.5"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.14"
+  }
+}
