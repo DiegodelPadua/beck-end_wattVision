@@ -96,6 +96,22 @@ class MedicaoService {
             fator_potencia
         };
 
+        // ==========================================
+        // VALIDAÇÃO DA EXISTÊNCIA DO PZEM
+        // ==========================================
+
+        // Consulta o banco para verificar se o
+        // PZEM informado está cadastrado.
+        const pzem = await medicaoRepository.buscarPzemPorId(
+            id_pzem
+        );
+
+        // Se o PZEM não existir, interrompe o cadastro.
+        if (!pzem) {
+            throw new Error(
+                `PZEM com ID ${id_pzem} não encontrado.`
+            );
+        }
 
         // Solicita ao Repository a gravação.
         const id =
