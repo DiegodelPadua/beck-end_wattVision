@@ -1,12 +1,37 @@
+// ==========================================
+// BACKEND - WATT VISION
+// ==========================================
+
 // Importa a aplicação Express configurada no arquivo src/app.js
 import app from "./src/app.js";
 
-// Define a porta onde o servidor Backend ficará disponível
-const PORT = 3000;
+// Inicializa a conexão MQTT do Backend com o broker
+import "./src/mqtt/medicaoSubscriber.js";
 
-// Inicia o servidor e faz com que ele fique aguardando requisições
+
+// ==========================================
+// CONFIGURAÇÃO DO SERVIDOR
+// ==========================================
+
+// Utiliza a porta definida no .env.
+// Caso não exista, utiliza 3000 como padrão.
+const PORT = process.env.PORT || 3000;
+
+
+// ==========================================
+// INICIALIZAÇÃO DO SERVIDOR
+// ==========================================
+
+// Inicia o servidor HTTP do Watt Vision.
 app.listen(PORT, () => {
 
-    // Esta mensagem será exibida no terminal quando o servidor iniciar
-    console.log(`Servidor Watt Vision rodando na porta ${PORT}`);
+    console.log("");
+    console.log("========================================");
+    console.log("         BACKEND - WATT VISION");
+    console.log("========================================");
+
+    console.log(`Servidor rodando na porta ${PORT}`);
+
+    console.log("========================================");
+    console.log("");
 });

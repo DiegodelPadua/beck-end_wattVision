@@ -35,6 +35,7 @@ class MedicaoService {
         // Extrai os dados recebidos.
         const {
             id_pzem,
+            data_hora,
             tensao,
             corrente,
             potencia_ativa,
@@ -52,6 +53,14 @@ class MedicaoService {
         if (id_pzem === undefined || id_pzem === null) {
             throw new Error(
                 "O campo id_pzem é obrigatório."
+            );
+        }
+        // A data e hora da medição precisam ser informadas.
+        // Isso preserva o momento real em que o ESP32
+        // realizou a leitura, inclusive em medições offline.
+        if (!data_hora) {
+            throw new Error(
+                "O campo data_hora é obrigatório."
             );
         }
 
@@ -88,6 +97,7 @@ class MedicaoService {
         // para o Repository.
         const medicao = {
             id_pzem,
+            data_hora,
             tensao,
             corrente,
             potencia_ativa,

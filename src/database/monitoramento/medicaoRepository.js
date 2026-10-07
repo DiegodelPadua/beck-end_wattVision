@@ -51,6 +51,7 @@ class MedicaoRepository {
 
         const {
             id_pzem,
+            data_hora,
             tensao,
             corrente,
             potencia_ativa,
@@ -72,10 +73,11 @@ class MedicaoRepository {
                 frequencia,
                 fator_potencia
             )
-            VALUES (?, NOW(), ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             `,
             [
                 id_pzem,
+                data_hora,
                 tensao,
                 corrente,
                 potencia_ativa,
