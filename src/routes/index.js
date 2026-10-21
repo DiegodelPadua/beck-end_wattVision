@@ -1,57 +1,63 @@
 
-
+/**
+ * ==========================================
+ * WATT VISION - ROTAS PRINCIPAIS DA API
+ * ==========================================
+ *
+ * Este arquivo centraliza as rotas dos
+ * diferentes módulos do backend.
+ */
 
 // Importa o Router do Express.
-// O Router permite organizar as rotas da API
-// em arquivos separados.
 import { Router } from "express";
 
-// Importa as rotas relacionadas às medições.
+// ==========================================
+// IMPORTAÇÃO DAS ROTAS
+// ==========================================
+
+// Rotas responsáveis pelas medições elétricas.
 import medicaoRoutes from "./medicaoRoutes.js";
 
-
-// Importa as rotas do módulo de Setores.
-import setorRoutes from "./setorRoutes.js";
-
-
-
-
-
-
-
-// ==========================================
-// ROTAS PRINCIPAIS DA API
-// ==========================================
-
-// Cria o roteador principal da aplicação.
-const router = Router();
-
-
-// Todas as requisições que começarem com
-// /medicoes serão encaminhadas para
-// o arquivo medicaoRoutes.js.
-router.use("/medicoes", medicaoRoutes);
-
-
-// ==========================================
-// EXPORTAÇÃO
-// ==========================================
-
-// Exporta o router como exportação padrão.
-//
-// Isso permite que o app.js utilize:
-//
-// import routes from "./routes/index.js";
-export default router;
-
-// Importa as rotas de locais.
+// Rotas responsáveis pelos locais.
 import localRoutes from "./localRoutes.js";
 
-// Registra as rotas de locais.
-// Use esta linha se "router" for o roteador principal.
+// Rotas responsáveis pelos setores.
+import setorRoutes from "./setorRoutes.js";
+
+// Rotas responsáveis pelos equipamentos.
+import equipamentoRoutes from "./equipamentoRoutes.js";
+
+// ==========================================
+// CRIAÇÃO DO ROTEADOR PRINCIPAL
+// ==========================================
+
+// O router deve ser criado ANTES de registrar
+// qualquer rota com router.use().
+const router = Router();
+
+// ==========================================
+// REGISTRO DAS ROTAS
+// ==========================================
+
+// Endpoints de medições.
+// Exemplo: GET /api/medicoes
+router.use("/medicoes", medicaoRoutes);
+
+// Endpoints de locais.
+// Exemplo: GET /api/locais
 router.use("/locais", localRoutes);
 
-// Registra os endpoints de Setores.
+// Endpoints de setores.
+// Exemplo: GET /api/setores
 router.use("/setores", setorRoutes);
 
+// Endpoints de equipamentos.
+// Exemplo: GET /api/equipamentos
+router.use("/equipamentos", equipamentoRoutes);
 
+// ==========================================
+// EXPORTAÇÃO DO ROTEADOR
+// ==========================================
+
+// Disponibiliza o roteador para o app.js.
+export default router;
