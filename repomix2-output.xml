@@ -1,0 +1,2852 @@
+This file is a merged representation of the entire codebase, combined into a single document by Repomix.
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of the entire repository's contents.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+</file_summary>
+
+<directory_structure>
+src/
+  config/
+    database.js
+    mqttConfig.js
+    testDatabase.js
+  controllers/
+    equipamentoController.js
+    localController.js
+    medicaoController.js
+    setorController.js
+  database/
+    monitoramento/
+      equipamentoRepository.js
+      localRepository.js
+      medicaoRepository.js
+      setorRepository.js
+  docs/
+    swagger.js
+  mqtt/
+    medicaoSubscriber.js
+    mqttClient.js
+  routes/
+    equipamentoRoutes.js
+    index.js
+    localRoutes.js
+    medicaoRoutes.js
+    setorRoutes.js
+  services/
+    equipamentoService.js
+    localService.js
+    medicaoService.js
+    setorService.js
+  app.js
+.env.example
+.gitignore
+package.json
+README.md
+server.js
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path="src/config/database.js">
+// Importa o mysql2 utilizando suporte a Promises.
+// Isso permite utilizar async/await nas operações com o banco.
+import mysql from "mysql2/promise";
+
+// Importa o dotenv para acessar as variáveis do arquivo .env.
+import dotenv from "dotenv";
+
+// Carrega as variáveis de ambiente.
+dotenv.config();
+
+
+// ==============================
+// CONEXÃO COM O MYSQL
+// ==============================
+
+// Cria um pool de conexões.
+//
+// Diferente de abrir uma nova conexão para cada operação,
+// o pool mantém conexões disponíveis para serem reutilizadas.
+// Isso melhora o desempenho e a organização do Backend.
+const database = mysql.createPool({
+
+    // Endereço do servidor MySQL.
+    host: process.env.DB_HOST,
+
+    // Porta utilizada pelo MySQL.
+    port: process.env.DB_PORT,
+
+    // Usuário do banco.
+    user: process.env.DB_USER,
+
+    // Senha do banco.
+    password: process.env.DB_PASSWORD,
+
+    // Banco utilizado pelo Watt Vision.
+    database: process.env.DB_NAME,
+
+    // Aguarda uma conexão ficar disponível caso todas
+    // estejam sendo utilizadas.
+    waitForConnections: true,
+
+    // Quantidade máxima de conexões simultâneas no pool.
+    connectionLimit: 10,
+
+    // Quantidade máxima de requisições aguardando conexão.
+    // 0 significa sem limite definido.
+    queueLimit: 0
+});
+
+
+// Exporta o pool para que os Repositories possam
+// utilizar a conexão com o MySQL.
+export default database;
+</file>
+
+<file path="src/config/mqttConfig.js">
+// ==========================================
+// CONFIGURAÇÃO MQTT - WATT VISION
+// ==========================================
+
+// Centraliza as configurações utilizadas
+// para conectar o Backend ao broker MQTT.
+
+const mqttConfig = {
+
+    // Endereço do broker.
+    url: process.env.MQTT_BROKER_URL,
+
+    // Identificador exclusivo do Backend.
+    clientId: "wattvision_backend",
+
+    // Tópico utilizado para receber medições.
+    topicoMedicoes: process.env.MQTT_TOPIC_MEDICOES,
+
+    // Reconexão automática a cada 5 segundos.
+    reconnectPeriod: 5000,
+
+    // Tempo máximo para estabelecer conexão.
+    connectTimeout: 10000
+};
+
+export default mqttConfig;
+</file>
+
+<file path="src/config/testDatabase.js">
+// Importa a conexão configurada com o MySQL.
+import database from "./database.js";
+
+
+// Função responsável por testar a conexão com o banco.
+async function testarConexao() {
+
+    try {
+
+        // Executa uma consulta extremamente simples no MySQL.
+        // Se ela funcionar, sabemos que a conexão foi estabelecida.
+        const [resultado] = await database.query(
+            "SELECT 1 AS conexao"
+        );
+
+        console.log("=================================");
+        console.log("WATT VISION - BANCO DE DADOS");
+        console.log("=================================");
+        console.log("Conexão com MySQL realizada com sucesso!");
+        console.log("Banco:", process.env.DB_NAME);
+        console.log("=================================");
+
+    } catch (erro) {
+
+        // Caso a conexão falhe, mostra o erro no terminal.
+        console.error("=================================");
+        console.error("ERRO NA CONEXÃO COM O MYSQL");
+        console.error("=================================");
+        console.error(erro.message);
+        console.error("=================================");
+
+    }
+
+}
+
+
+// Executa o teste.
+testarConexao();
+</file>
+
+<file path="src/controllers/equipamentoController.js">
+import equipamentoService from "../services/equipamentoService.js";
+
+// ==========================================
+// CONTROLLER - EQUIPAMENTOS
+// ==========================================
+// Recebe as requisições HTTP e devolve JSON.
+
+class EquipamentoController {
+
+    // GET /api/equipamentos
+    async listarTodos(req, res) {
+        try {
+            const equipamentos =
+                await equipamentoService.listarTodos();
+
+            return res.status(200).json({
+                sucesso: true,
+                quantidade: equipamentos.length,
+                dados: equipamentos
+            });
+        } catch (erro) {
+            console.error("Erro ao listar equipamentos:", erro);
+
+            return res.status(500).json({
+                sucesso: false,
+                mensagem: "Erro ao consultar equipamentos."
+            });
+        }
+    }
+
+    // GET /api/equipamentos/setor/:idSetor
+    async listarPorSetor(req, res) {
+        try {
+            const equipamentos =
+                await equipamentoService.listarPorSetor(
+                    req.params.idSetor
+                );
+
+            return res.status(200).json({
+                sucesso: true,
+                quantidade: equipamentos.length,
+                dados: equipamentos
+            });
+        } catch (erro) {
+            return res.status(400).json({
+                sucesso: false,
+                mensagem: erro.message
+            });
+        }
+    }
+
+    // GET /api/equipamentos/:id
+    async buscarPorId(req, res) {
+        try {
+            const equipamento =
+                await equipamentoService.buscarPorId(
+                    req.params.id
+                );
+
+            if (!equipamento) {
+                return res.status(404).json({
+                    sucesso: false,
+                    mensagem: "Equipamento não encontrado."
+                });
+            }
+
+            return res.status(200).json({
+                sucesso: true,
+                dados: equipamento
+            });
+        } catch (erro) {
+            return res.status(400).json({
+                sucesso: false,
+                mensagem: erro.message
+            });
+        }
+    }
+}
+
+export default new EquipamentoController();
+</file>
+
+<file path="src/controllers/localController.js">
+import localService from "../services/localService.js";
+
+// ==========================================
+// CONTROLLER - LOCAIS
+// ==========================================
+// Recebe as requisições HTTP e devolve JSON.
+
+class LocalController {
+
+    // Centraliza o tratamento de erros.
+    tratarErro(erro, res) {
+        console.error("[LOCAL]", erro);
+
+        return res.status(erro.status || 500).json({
+            sucesso: false,
+            mensagem: erro.status
+                ? erro.message
+                : "Erro interno ao processar o local."
+        });
+    }
+
+    // GET /api/locais
+    async listarTodos(req, res) {
+        try {
+            const locais = await localService.listarTodos();
+
+            return res.status(200).json({
+                sucesso: true,
+                quantidade: locais.length,
+                dados: locais
+            });
+        } catch (erro) {
+            return this.tratarErro(erro, res);
+        }
+    }
+
+    // GET /api/locais/:id
+    async buscarPorId(req, res) {
+        try {
+            const local =
+                await localService.buscarPorId(req.params.id);
+
+            return res.status(200).json({
+                sucesso: true,
+                dados: local
+            });
+        } catch (erro) {
+            return this.tratarErro(erro, res);
+        }
+    }
+
+    // POST /api/locais
+    async criar(req, res) {
+        try {
+            const id = await localService.criar(req.body);
+
+            return res.status(201).json({
+                sucesso: true,
+                mensagem: "Local cadastrado com sucesso.",
+                id_local: id
+            });
+        } catch (erro) {
+            return this.tratarErro(erro, res);
+        }
+    }
+
+    // PUT /api/locais/:id
+    async atualizar(req, res) {
+        try {
+            const local = await localService.atualizar(
+                req.params.id,
+                req.body
+            );
+
+            return res.status(200).json({
+                sucesso: true,
+                dados: local
+            });
+        } catch (erro) {
+            return this.tratarErro(erro, res);
+        }
+    }
+
+    // PATCH /api/locais/:id/status
+    async atualizarStatus(req, res) {
+        try {
+            const local = await localService.atualizarStatus(
+                req.params.id,
+                req.body?.status
+            );
+
+            return res.status(200).json({
+                sucesso: true,
+                dados: local
+            });
+        } catch (erro) {
+            return this.tratarErro(erro, res);
+        }
+    }
+}
+
+export default new LocalController();
+</file>
+
+<file path="src/controllers/setorController.js">
+import setorService from "../services/setorService.js";
+
+// ==========================================
+// CONTROLLER - SETORES
+// ==========================================
+// Recebe requisições HTTP e devolve JSON.
+
+class SetorController {
+
+    // Padroniza o tratamento de erros.
+    tratarErro(erro, res) {
+        console.error("[SETOR]", erro);
+
+        return res.status(erro.status || 500).json({
+            sucesso: false,
+            mensagem: erro.status
+                ? erro.message
+                : "Erro interno ao processar o setor."
+        });
+    }
+
+    // GET /api/setores
+    async listarTodos(req, res) {
+        try {
+            const setores = await setorService.listarTodos();
+
+            return res.status(200).json({
+                sucesso: true,
+                quantidade: setores.length,
+                dados: setores
+            });
+        } catch (erro) {
+            return this.tratarErro(erro, res);
+        }
+    }
+
+    // GET /api/setores/:id
+    async buscarPorId(req, res) {
+        try {
+            const setor =
+                await setorService.buscarPorId(req.params.id);
+
+            return res.status(200).json({
+                sucesso: true,
+                dados: setor
+            });
+        } catch (erro) {
+            return this.tratarErro(erro, res);
+        }
+    }
+
+    // GET /api/setores/local/:idLocal
+    async listarPorLocal(req, res) {
+        try {
+            const setores = await setorService.listarPorLocal(
+                req.params.idLocal
+            );
+
+            return res.status(200).json({
+                sucesso: true,
+                quantidade: setores.length,
+                dados: setores
+            });
+        } catch (erro) {
+            return this.tratarErro(erro, res);
+        }
+    }
+
+    // POST /api/setores
+    async criar(req, res) {
+        try {
+            const id = await setorService.criar(req.body);
+
+            return res.status(201).json({
+                sucesso: true,
+                mensagem: "Setor cadastrado com sucesso.",
+                id_setor: id
+            });
+        } catch (erro) {
+            return this.tratarErro(erro, res);
+        }
+    }
+
+    // PUT /api/setores/:id
+    async atualizar(req, res) {
+        try {
+            const setor = await setorService.atualizar(
+                req.params.id,
+                req.body
+            );
+
+            return res.status(200).json({
+                sucesso: true,
+                dados: setor
+            });
+        } catch (erro) {
+            return this.tratarErro(erro, res);
+        }
+    }
+
+    // PATCH /api/setores/:id/status
+    async atualizarStatus(req, res) {
+        try {
+            const setor = await setorService.atualizarStatus(
+                req.params.id,
+                req.body?.status
+            );
+
+            return res.status(200).json({
+                sucesso: true,
+                dados: setor
+            });
+        } catch (erro) {
+            return this.tratarErro(erro, res);
+        }
+    }
+}
+
+export default new SetorController();
+</file>
+
+<file path="src/database/monitoramento/equipamentoRepository.js">
+import database from "../../config/database.js";
+
+// ==========================================
+// REPOSITORY - EQUIPAMENTOS
+// ==========================================
+// Responsável pelas consultas SQL relacionadas
+// aos equipamentos industriais do Watt Vision.
+
+class EquipamentoRepository {
+
+    // Lista os equipamentos e os dados associados.
+    async listarTodos() {
+        const [equipamentos] = await database.query(`
+            SELECT
+                e.*,
+                s.nome AS setor,
+                te.nome AS tipo_equipamento,
+                se.nome AS status_equipamento,
+                f.nome AS fabricante
+            FROM tbl_equipamento e
+            INNER JOIN tbl_setor s
+                ON e.id_setor = s.id
+            INNER JOIN tbl_tipo_equipamento te
+                ON e.id_tipo_equipamento = te.id
+            INNER JOIN tbl_status_equipamento se
+                ON e.id_status_equipamento = se.id
+            LEFT JOIN tbl_fabricante f
+                ON e.id_fabricante = f.id
+            ORDER BY e.id DESC
+        `);
+
+        return equipamentos;
+    }
+
+    // Consulta um equipamento pelo seu ID.
+    async buscarPorId(id) {
+        const [equipamentos] = await database.query(
+            `
+            SELECT *
+            FROM tbl_equipamento
+            WHERE id = ?
+            `,
+            [id]
+        );
+
+        return equipamentos[0] ?? null;
+    }
+
+    // Lista equipamentos pertencentes a um setor.
+    async listarPorSetor(idSetor) {
+        const [equipamentos] = await database.query(
+            `
+            SELECT *
+            FROM tbl_equipamento
+            WHERE id_setor = ?
+            ORDER BY nome
+            `,
+            [idSetor]
+        );
+
+        return equipamentos;
+    }
+}
+
+export default new EquipamentoRepository();
+</file>
+
+<file path="src/database/monitoramento/localRepository.js">
+import database from "../../config/database.js";
+
+// ==========================================
+// REPOSITORY - LOCAIS
+// ==========================================
+// Responsável pelas consultas SQL da tabela
+// tbl_local, utilizando parâmetros seguros.
+
+class LocalRepository {
+
+    // Lista os locais cadastrados.
+    async listarTodos() {
+        const [locais] = await database.query(`
+            SELECT id, nome, descricao, status, id_empresa
+            FROM tbl_local
+            ORDER BY nome ASC
+        `);
+
+        return locais;
+    }
+
+    // Busca um local pelo identificador.
+    async buscarPorId(id) {
+        const [locais] = await database.query(
+            `
+            SELECT id, nome, descricao, status, id_empresa
+            FROM tbl_local
+            WHERE id = ?
+            `,
+            [id]
+        );
+
+        return locais[0] ?? null;
+    }
+
+    // Verifica se a empresa informada existe.
+    async buscarEmpresaPorId(idEmpresa) {
+        const [empresas] = await database.query(
+            "SELECT id FROM tbl_empresa WHERE id = ?",
+            [idEmpresa]
+        );
+
+        return empresas[0] ?? null;
+    }
+
+    // Insere um novo local.
+    async criar(dados) {
+        const [resultado] = await database.query(
+            `
+            INSERT INTO tbl_local
+                (nome, descricao, status, id_empresa)
+            VALUES (?, ?, ?, ?)
+            `,
+            [
+                dados.nome,
+                dados.descricao,
+                dados.status,
+                dados.id_empresa
+            ]
+        );
+
+        return resultado.insertId;
+    }
+
+    // Atualiza os dados de um local existente.
+    async atualizar(id, dados) {
+        const [resultado] = await database.query(
+            `
+            UPDATE tbl_local
+            SET nome = ?,
+                descricao = ?,
+                status = ?,
+                id_empresa = ?
+            WHERE id = ?
+            `,
+            [
+                dados.nome,
+                dados.descricao,
+                dados.status,
+                dados.id_empresa,
+                id
+            ]
+        );
+
+        return resultado.affectedRows > 0;
+    }
+
+    // Atualiza somente o status do local.
+    async atualizarStatus(id, status) {
+        const [resultado] = await database.query(
+            `
+            UPDATE tbl_local
+            SET status = ?
+            WHERE id = ?
+            `,
+            [status, id]
+        );
+
+        return resultado.affectedRows > 0;
+    }
+}
+
+export default new LocalRepository();
+</file>
+
+<file path="src/database/monitoramento/setorRepository.js">
+import database from "../../config/database.js";
+
+// ==========================================
+// REPOSITORY - SETORES
+// ==========================================
+// Responsável pelas operações SQL na
+// tabela tbl_setor.
+
+class SetorRepository {
+
+    // Lista os setores com o nome do local.
+    async listarTodos() {
+        const [setores] = await database.query(`
+            SELECT
+                s.id,
+                s.nome,
+                s.descricao,
+                s.status,
+                s.id_local,
+                l.nome AS nome_local
+            FROM tbl_setor s
+            INNER JOIN tbl_local l
+                ON l.id = s.id_local
+            ORDER BY s.nome ASC
+        `);
+
+        return setores;
+    }
+
+    // Consulta um setor específico.
+    async buscarPorId(id) {
+        const [setores] = await database.query(
+            `
+            SELECT
+                s.id,
+                s.nome,
+                s.descricao,
+                s.status,
+                s.id_local,
+                l.nome AS nome_local
+            FROM tbl_setor s
+            INNER JOIN tbl_local l
+                ON l.id = s.id_local
+            WHERE s.id = ?
+            `,
+            [id]
+        );
+
+        return setores[0] ?? null;
+    }
+
+    // Consulta os setores pertencentes a um local.
+    async listarPorLocal(idLocal) {
+        const [setores] = await database.query(
+            `
+            SELECT
+                id,
+                nome,
+                descricao,
+                status,
+                id_local
+            FROM tbl_setor
+            WHERE id_local = ?
+            ORDER BY nome ASC
+            `,
+            [idLocal]
+        );
+
+        return setores;
+    }
+
+    // Confere se o local existe.
+    async buscarLocalPorId(idLocal) {
+        const [locais] = await database.query(
+            `
+            SELECT id, nome, status
+            FROM tbl_local
+            WHERE id = ?
+            `,
+            [idLocal]
+        );
+
+        return locais[0] ?? null;
+    }
+
+    // Cadastra um setor.
+    async criar(dados) {
+        const [resultado] = await database.query(
+            `
+            INSERT INTO tbl_setor
+                (nome, descricao, status, id_local)
+            VALUES (?, ?, ?, ?)
+            `,
+            [
+                dados.nome,
+                dados.descricao,
+                dados.status,
+                dados.id_local
+            ]
+        );
+
+        return resultado.insertId;
+    }
+
+    // Atualiza um setor.
+    async atualizar(id, dados) {
+        const [resultado] = await database.query(
+            `
+            UPDATE tbl_setor
+            SET nome = ?,
+                descricao = ?,
+                status = ?,
+                id_local = ?
+            WHERE id = ?
+            `,
+            [
+                dados.nome,
+                dados.descricao,
+                dados.status,
+                dados.id_local,
+                id
+            ]
+        );
+
+        return resultado.affectedRows > 0;
+    }
+
+    // Ativa ou desativa um setor.
+    async atualizarStatus(id, status) {
+        const [resultado] = await database.query(
+            `
+            UPDATE tbl_setor
+            SET status = ?
+            WHERE id = ?
+            `,
+            [status, id]
+        );
+
+        return resultado.affectedRows > 0;
+    }
+}
+
+export default new SetorRepository();
+</file>
+
+<file path="src/docs/swagger.js">
+
+</file>
+
+<file path="src/routes/equipamentoRoutes.js">
+import { Router } from "express";
+
+import equipamentoController from
+    "../controllers/equipamentoController.js";
+
+// Cria o roteador de equipamentos.
+const router = Router();
+
+// Lista todos os equipamentos.
+router.get("/", equipamentoController.listarTodos);
+
+// Lista os equipamentos de um setor.
+// Esta rota deve vir antes de /:id.
+router.get(
+    "/setor/:idSetor",
+    equipamentoController.listarPorSetor
+);
+
+// Consulta um equipamento pelo ID.
+router.get("/:id", equipamentoController.buscarPorId);
+
+export default router;
+</file>
+
+<file path="src/routes/localRoutes.js">
+import { Router } from "express";
+import localController from "../controllers/localController.js";
+
+// ==========================================
+// ROTAS - LOCAIS
+// ==========================================
+// Define os endpoints HTTP para o cadastro
+// e gerenciamento dos locais.
+
+const router = Router();
+
+// Lista todos os locais.
+router.get("/", (req, res) =>
+    localController.listarTodos(req, res)
+);
+
+// Consulta um local pelo ID.
+router.get("/:id", (req, res) =>
+    localController.buscarPorId(req, res)
+);
+
+// Cadastra um local.
+router.post("/", (req, res) =>
+    localController.criar(req, res)
+);
+
+// Atualiza todos os campos editáveis do local.
+router.put("/:id", (req, res) =>
+    localController.atualizar(req, res)
+);
+
+// Altera somente o status do local.
+router.patch("/:id/status", (req, res) =>
+    localController.atualizarStatus(req, res)
+);
+
+export default router;
+</file>
+
+<file path="src/routes/setorRoutes.js">
+import { Router } from "express";
+import setorController from "../controllers/setorController.js";
+
+// ==========================================
+// ROTAS - SETORES
+// ==========================================
+
+const router = Router();
+
+// Lista os setores cadastrados.
+router.get("/", (req, res) =>
+    setorController.listarTodos(req, res)
+);
+
+// Lista setores de um local específico.
+// Esta rota deve ficar antes de "/:id".
+router.get("/local/:idLocal", (req, res) =>
+    setorController.listarPorLocal(req, res)
+);
+
+// Consulta um setor pelo ID.
+router.get("/:id", (req, res) =>
+    setorController.buscarPorId(req, res)
+);
+
+// Cadastra um setor.
+router.post("/", (req, res) =>
+    setorController.criar(req, res)
+);
+
+// Atualiza um setor.
+router.put("/:id", (req, res) =>
+    setorController.atualizar(req, res)
+);
+
+// Ativa ou desativa um setor.
+router.patch("/:id/status", (req, res) =>
+    setorController.atualizarStatus(req, res)
+);
+
+export default router;
+</file>
+
+<file path="src/services/equipamentoService.js">
+import equipamentoRepository from
+    "../database/monitoramento/equipamentoRepository.js";
+
+// ==========================================
+// SERVICE - EQUIPAMENTOS
+// ==========================================
+// Centraliza as regras de negócio.
+
+class EquipamentoService {
+
+    // Retorna todos os equipamentos.
+    async listarTodos() {
+        return await equipamentoRepository.listarTodos();
+    }
+
+    // Busca um equipamento por ID.
+    async buscarPorId(id) {
+        if (!Number.isInteger(Number(id)) || Number(id) <= 0) {
+            throw new Error("ID do equipamento inválido.");
+        }
+
+        return await equipamentoRepository.buscarPorId(id);
+    }
+
+    // Busca equipamentos de determinado setor.
+    async listarPorSetor(idSetor) {
+        if (!Number.isInteger(Number(idSetor)) || Number(idSetor) <= 0) {
+            throw new Error("ID do setor inválido.");
+        }
+
+        return await equipamentoRepository.listarPorSetor(idSetor);
+    }
+}
+
+export default new EquipamentoService();
+</file>
+
+<file path="src/services/localService.js">
+import localRepository from "../database/monitoramento/localRepository.js";
+
+// ==========================================
+// SERVICE - LOCAIS
+// ==========================================
+// Contém as validações e regras de negócio.
+
+class LocalService {
+
+    // Cria erros com código HTTP definido.
+    criarErro(mensagem, status = 400) {
+        const erro = new Error(mensagem);
+        erro.status = status;
+        return erro;
+    }
+
+    // Valida um identificador positivo.
+    validarId(valor) {
+        const id = Number(valor);
+
+        if (!Number.isSafeInteger(id) || id <= 0) {
+            throw this.criarErro("Identificador inválido.");
+        }
+
+        return id;
+    }
+
+    // Valida e prepara os dados de um local.
+    async validarDados(dados) {
+        const nome = dados?.nome?.trim();
+
+        if (!nome || nome.length > 100) {
+            throw this.criarErro(
+                "O nome deve conter entre 1 e 100 caracteres."
+            );
+        }
+
+        const descricao = dados.descricao ?? null;
+
+        if (
+            descricao !== null &&
+            (typeof descricao !== "string" ||
+             descricao.length > 255)
+        ) {
+            throw this.criarErro("Descrição inválida.");
+        }
+
+        const status = dados.status ?? "ATIVO";
+
+        if (!["ATIVO", "INATIVO"].includes(status)) {
+            throw this.criarErro(
+                "O status deve ser ATIVO ou INATIVO."
+            );
+        }
+
+        const idEmpresa = this.validarId(dados.id_empresa);
+
+        // Impede associar o local a uma empresa inexistente.
+        const empresa =
+            await localRepository.buscarEmpresaPorId(idEmpresa);
+
+        if (!empresa) {
+            throw this.criarErro(
+                "Empresa não encontrada.",
+                404
+            );
+        }
+
+        return {
+            nome,
+            descricao,
+            status,
+            id_empresa: idEmpresa
+        };
+    }
+
+    // Lista todos os locais.
+    async listarTodos() {
+        return localRepository.listarTodos();
+    }
+
+    // Consulta um local específico.
+    async buscarPorId(id) {
+        const local =
+            await localRepository.buscarPorId(this.validarId(id));
+
+        if (!local) {
+            throw this.criarErro("Local não encontrado.", 404);
+        }
+
+        return local;
+    }
+
+    // Cadastra um novo local.
+    async criar(dados) {
+        const local = await this.validarDados(dados);
+        return localRepository.criar(local);
+    }
+
+    // Atualiza um local existente.
+    async atualizar(id, dados) {
+        const idValidado = this.validarId(id);
+
+        await this.buscarPorId(idValidado);
+
+        const local = await this.validarDados(dados);
+
+        await localRepository.atualizar(idValidado, local);
+
+        return localRepository.buscarPorId(idValidado);
+    }
+
+    // Ativa ou desativa um local.
+    async atualizarStatus(id, status) {
+        const idValidado = this.validarId(id);
+
+        await this.buscarPorId(idValidado);
+
+        if (!["ATIVO", "INATIVO"].includes(status)) {
+            throw this.criarErro("Status inválido.");
+        }
+
+        await localRepository.atualizarStatus(
+            idValidado,
+            status
+        );
+
+        return localRepository.buscarPorId(idValidado);
+    }
+}
+
+export default new LocalService();
+</file>
+
+<file path="src/services/setorService.js">
+import setorRepository from "../database/monitoramento/setorRepository.js";
+
+// ==========================================
+// SERVICE - SETORES
+// ==========================================
+// Valida os dados e aplica as regras
+// de negócio dos setores.
+
+class SetorService {
+
+    // Cria erros com códigos HTTP.
+    criarErro(mensagem, status = 400) {
+        const erro = new Error(mensagem);
+        erro.status = status;
+        return erro;
+    }
+
+    // Valida IDs recebidos nas requisições.
+    validarId(valor) {
+        const id = Number(valor);
+
+        if (!Number.isSafeInteger(id) || id <= 0) {
+            throw this.criarErro("Identificador inválido.");
+        }
+
+        return id;
+    }
+
+    // Valida os campos do setor.
+    async validarDados(dados) {
+        if (
+            typeof dados?.nome !== "string" ||
+            !dados.nome.trim() ||
+            dados.nome.trim().length > 100
+        ) {
+            throw this.criarErro(
+                "O nome deve conter entre 1 e 100 caracteres."
+            );
+        }
+
+        const descricao = dados.descricao ?? null;
+
+        if (
+            descricao !== null &&
+            (typeof descricao !== "string" ||
+             descricao.length > 255)
+        ) {
+            throw this.criarErro("Descrição inválida.");
+        }
+
+        const status = dados.status ?? "ATIVO";
+
+        if (!["ATIVO", "INATIVO"].includes(status)) {
+            throw this.criarErro(
+                "O status deve ser ATIVO ou INATIVO."
+            );
+        }
+
+        const idLocal = this.validarId(dados.id_local);
+
+        // Verifica se o setor está associado
+        // a um local realmente cadastrado.
+        const local =
+            await setorRepository.buscarLocalPorId(idLocal);
+
+        if (!local) {
+            throw this.criarErro("Local não encontrado.", 404);
+        }
+
+        // Não permite criar ou mover um setor ativo
+        // para um local que esteja inativo.
+        if (status === "ATIVO" && local.status !== "ATIVO") {
+            throw this.criarErro(
+                "Não é possível manter um setor ativo em um local inativo."
+            );
+        }
+
+        return {
+            nome: dados.nome.trim(),
+            descricao,
+            status,
+            id_local: idLocal
+        };
+    }
+
+    // Lista todos os setores.
+    async listarTodos() {
+        return setorRepository.listarTodos();
+    }
+
+    // Busca um setor pelo ID.
+    async buscarPorId(id) {
+        const setor =
+            await setorRepository.buscarPorId(this.validarId(id));
+
+        if (!setor) {
+            throw this.criarErro("Setor não encontrado.", 404);
+        }
+
+        return setor;
+    }
+
+    // Lista os setores de determinado local.
+    async listarPorLocal(idLocal) {
+        const id = this.validarId(idLocal);
+
+        const local = await setorRepository.buscarLocalPorId(id);
+
+        if (!local) {
+            throw this.criarErro("Local não encontrado.", 404);
+        }
+
+        return setorRepository.listarPorLocal(id);
+    }
+
+    // Cadastra um novo setor.
+    async criar(dados) {
+        const setor = await this.validarDados(dados);
+        return setorRepository.criar(setor);
+    }
+
+    // Atualiza os dados de um setor.
+    async atualizar(id, dados) {
+        const idValidado = this.validarId(id);
+
+        await this.buscarPorId(idValidado);
+
+        const setor = await this.validarDados(dados);
+
+        await setorRepository.atualizar(idValidado, setor);
+
+        return setorRepository.buscarPorId(idValidado);
+    }
+
+    // Altera o status de um setor.
+    async atualizarStatus(id, status) {
+        const idValidado = this.validarId(id);
+
+        const setor = await this.buscarPorId(idValidado);
+
+        if (!["ATIVO", "INATIVO"].includes(status)) {
+            throw this.criarErro("Status inválido.");
+        }
+
+        // Para reativar, o local também deve estar ativo.
+        if (status === "ATIVO") {
+            const local =
+                await setorRepository.buscarLocalPorId(
+                    setor.id_local
+                );
+
+            if (local.status !== "ATIVO") {
+                throw this.criarErro(
+                    "Ative o local antes de reativar o setor."
+                );
+            }
+        }
+
+        await setorRepository.atualizarStatus(
+            idValidado,
+            status
+        );
+
+        return setorRepository.buscarPorId(idValidado);
+    }
+}
+
+export default new SetorService();
+</file>
+
+<file path="src/app.js">
+// Importa o framework Express.
+import express from "express";
+
+// Importa o CORS.
+// Permite comunicação entre Front-end e Back-end.
+import cors from "cors";
+
+// Importa o conjunto principal de rotas da API.
+import routes from "./routes/index.js";
+
+
+// Cria a aplicação Express.
+const app = express();
+
+
+// ==========================================
+// MIDDLEWARES
+// ==========================================
+
+// Habilita o CORS.
+app.use(cors());
+
+// Permite que o Backend receba JSON.
+app.use(express.json());
+
+
+// ==========================================
+// ROTA DE TESTE
+// ==========================================
+
+// Utilizada para verificar se o servidor
+// está funcionando.
+app.get("/", (req, res) => {
+
+    res.json({
+        sistema: "Watt Vision",
+        status: "Backend funcionando"
+    });
+});
+
+
+// ==========================================
+// ROTAS DA API
+// ==========================================
+
+// Todas as rotas do sistema começam
+// com o prefixo /api.
+app.use("/api", routes);
+
+
+// Exporta a aplicação para o server.js.
+export default app;
+</file>
+
+<file path=".gitignore">
+# Dependências do Node
+node_modules/
+
+# Variáveis de ambiente e credenciais
+.env
+
+# Logs
+npm-debug.log*
+</file>
+
+<file path="package.json">
+{
+  "name": "back-end_wattvision",
+  "version": "1.0.0",
+  "description": "Backend do sistema de monitoramento energético Watt Vision",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "dev": "nodemon server.js",
+    "start": "node server.js",
+    "db:test": "node src/config/testDatabase.js",
+    "test": "echo \"Testes ainda não configurados\""
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/DiegodelPadua/beck-end_wattVision.git"
+  },
+  "keywords": [
+    "iot",
+    "energia",
+    "esp32",
+    "mqtt",
+    "wattvision"
+  ],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/DiegodelPadua/beck-end_wattVision/issues"
+  },
+  "homepage": "https://github.com/DiegodelPadua/beck-end_wattVision#readme",
+  "dependencies": {
+    "cors": "^2.8.6",
+    "dotenv": "^18.0.4",
+    "express": "^5.2.1",
+    "mqtt": "^5.16.0",
+    "mysql2": "^3.24.5"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.14"
+  }
+}
+</file>
+
+<file path="README.md">
+# beck-end_wattVision
+</file>
+
+<file path="src/controllers/medicaoController.js">
+// Importa o Service responsável
+// pelas regras de negócio das medições.
+import medicaoService
+    from "../services/medicaoService.js";
+
+
+// ==========================================
+// CONTROLLER - MEDIÇÃO
+// ==========================================
+//
+// Recebe as requisições HTTP,
+// chama o Service e devolve a resposta.
+
+class MedicaoController {
+
+    // ======================================
+    // LISTAR TODAS AS MEDIÇÕES
+    // ======================================
+
+    async listarTodas(req, res) {
+
+        try {
+
+            const medicoes =
+                await medicaoService.listarTodas();
+
+            return res.status(200).json({
+                sucesso: true,
+                quantidade: medicoes.length,
+                dados: medicoes
+            });
+
+        } catch (erro) {
+
+            console.error(
+                "Erro ao listar medições:",
+                erro
+            );
+
+            return res.status(500).json({
+                sucesso: false,
+                mensagem:
+                    "Erro interno ao buscar as medições."
+            });
+        }
+
+    }
+
+
+        // ======================================
+        // OBTER RESUMO ELÉTRICO
+        // ======================================
+        // Prepara a resposta HTTP para o dashboard.
+
+        async obterResumo(req, res) {
+            try {
+                const resumo = await medicaoService.obterResumo();
+
+                if (!resumo) {
+                    return res.status(404).json({
+                        sucesso: false,
+                        mensagem: "Nenhuma medição disponível."
+                    });
+                }
+
+                return res.status(200).json({
+                    sucesso: true,
+                    dados: resumo
+                });
+
+            } catch (erro) {
+                console.error("Erro ao obter resumo:", erro);
+
+                return res.status(500).json({
+                    sucesso: false,
+                    mensagem: "Erro interno ao obter resumo elétrico."
+                });
+            }
+        }
+
+
+    // ======================================
+    // BUSCAR A ÚLTIMA MEDIÇÃO
+    // ======================================
+    // Recebe a requisição HTTP, consulta o
+    // Service e devolve a última medição.
+
+    async buscarUltima(req, res) {
+
+        try {
+
+            // Solicita ao Service a medição mais recente.
+            const medicao =
+                await medicaoService.buscarUltima();
+
+            // Caso o banco ainda não tenha medições.
+            if (!medicao) {
+                return res.status(404).json({
+                    sucesso: false,
+                    mensagem: "Nenhuma medição encontrada."
+                });
+            }
+
+            // Retorna somente um registro.
+            return res.status(200).json({
+                sucesso: true,
+                dados: medicao
+            });
+
+        } catch (erro) {
+
+            // Registra o erro para diagnóstico.
+            console.error(
+                "Erro ao buscar última medição:",
+                erro
+            );
+
+            return res.status(500).json({
+                sucesso: false,
+                mensagem: "Erro interno ao buscar a última medição."
+            });
+        }
+    }
+
+
+    // ==========================================
+    // CONSULTAR SÉRIE TEMPORAL
+    // ==========================================
+    // Recebe os filtros e retorna as medições
+    // para os gráficos históricos do dashboard.
+
+    async obterSerieTemporal(req, res) {
+        try {
+            const { id_pzem, horas } = req.query;
+
+            const dados = await medicaoService.obterSerieTemporal(
+                id_pzem,
+                horas
+            );
+
+            return res.status(200).json({
+                sucesso: true,
+                quantidade: dados.length,
+                dados
+            });
+
+        } catch (erro) {
+            console.error("Erro na série temporal:", erro);
+
+            // Erros de validação dos filtros.
+            if (erro.status === 400) {
+                return res.status(400).json({
+                    sucesso: false,
+                    mensagem: erro.message
+                });
+            }
+
+            return res.status(500).json({
+                sucesso: false,
+                mensagem: "Erro interno ao consultar histórico."
+            });
+        }
+    }
+
+
+    // ==========================================
+    // ÚLTIMAS MEDIÇÕES DE UM PONTO
+    // ==========================================
+    // Consulta as últimas leituras dos PZEMs
+    // associados ao ponto informado na URL.
+
+    async buscarUltimasPorPonto(req, res) {
+
+        try {
+            const { id } = req.params;
+
+            const medicoes =
+                await medicaoService.buscarUltimasPorPonto(id);
+
+            return res.status(200).json({
+                sucesso: true,
+                id_ponto_medicao: Number(id),
+                quantidade: medicoes.length,
+                dados: medicoes
+            });
+
+        } catch (erro) {
+            console.error(
+                "Erro ao consultar ponto de medição:",
+                erro
+            );
+
+            if (erro.status === 400) {
+                return res.status(400).json({
+                    sucesso: false,
+                    mensagem: erro.message
+                });
+            }
+
+            return res.status(500).json({
+                sucesso: false,
+                mensagem: "Erro interno ao consultar o ponto de medição."
+            });
+        }
+    }
+
+
+    // ==========================================
+    // CONSULTAR CONSUMO E CUSTO
+    // ==========================================
+    // Recebe os parâmetros do Postman ou
+    // Front-end e solicita o cálculo ao Service.
+
+    async consultarConsumo(req, res) {
+
+        try {
+            const { id_pzem, inicio, fim } = req.query;
+
+            const resultado =
+                await medicaoService.calcularConsumo(
+                    id_pzem,
+                    inicio,
+                    fim
+                );
+
+            return res.status(200).json({
+                sucesso: true,
+                dados: resultado
+            });
+
+        } catch (erro) {
+
+            console.error(
+                "Erro ao calcular consumo:",
+                erro
+            );
+
+            return res.status(erro.status || 500).json({
+                sucesso: false,
+                mensagem: erro.status
+                    ? erro.message
+                    : "Erro interno ao calcular consumo."
+            });
+        }
+    }
+
+
+    // ======================================
+    // CRIAR UMA NOVA MEDIÇÃO
+    // ======================================
+
+    async criar(req, res) {
+
+        try {
+
+            // req.body contém o JSON enviado
+            // para o Backend.
+            const dados = req.body;
+
+
+            // Envia os dados para o Service.
+            const id =
+                await medicaoService.criar(dados);
+
+
+            // HTTP 201 significa:
+            // recurso criado com sucesso.
+            return res.status(201).json({
+
+                sucesso: true,
+
+                mensagem:
+                    "Medição cadastrada com sucesso.",
+
+                id_medicao: id
+            });
+
+        } catch (erro) {
+
+            console.error(
+                "Erro ao cadastrar medição:",
+                erro
+            );
+
+
+            // Por enquanto retornamos 400
+            // para erros ocorridos durante
+            // a validação/cadastro.
+            return res.status(400).json({
+
+                sucesso: false,
+
+                mensagem: erro.message
+            });
+        }
+    }
+}
+
+
+// Exporta uma instância do Controller.
+export default new MedicaoController();
+</file>
+
+<file path="src/mqtt/medicaoSubscriber.js">
+// ==========================================
+// SUBSCRIBER DE MEDIÇÕES - WATT VISION
+// ==========================================
+
+// Service responsável pelas regras de negócio
+// e gravação das medições no banco de dados.
+import medicaoService from "../services/medicaoService.js";
+
+
+// Utiliza a conexão MQTT já criada no mqttClient.js.
+import mqttClient from "./mqttClient.js";
+
+// Importa as configurações MQTT.
+import mqttConfig from "../config/mqttConfig.js";
+
+
+// ==========================================
+// ASSINATURA DO TÓPICO
+// ==========================================
+
+// Quando o Backend estiver conectado ao broker,
+// realiza a assinatura do tópico de medições.
+mqttClient.on("connect", () => {
+
+    console.log(
+        `[MQTT] Inscrevendo no tópico: ${mqttConfig.topicoMedicoes}`
+    );
+
+    mqttClient.subscribe(
+        mqttConfig.topicoMedicoes,
+        { qos: 0 },
+        (erro) => {
+
+            if (erro) {
+                console.error(
+                    "[MQTT] Erro ao assinar tópico:",
+                    erro.message
+                );
+
+                return;
+            }
+
+            console.log(
+                `[MQTT] Inscrito com sucesso em: ${mqttConfig.topicoMedicoes}`
+            );
+        }
+    );
+});
+
+
+// ==========================================
+// RECEBIMENTO DAS MENSAGENS
+// ==========================================
+
+mqttClient.on("message", async (topico, mensagem) => {
+
+    // Ignora mensagens de outros tópicos.
+    if (topico !== mqttConfig.topicoMedicoes) {
+        return;
+    }
+
+    console.log("");
+    console.log("========================================");
+    console.log("       NOVA MEDIÇÃO RECEBIDA");
+    console.log("========================================");
+
+    console.log(`[MQTT] Tópico: ${topico}`);
+
+    try {
+
+        // Converte o Buffer recebido pelo MQTT para texto.
+        const texto = mensagem.toString();
+
+        // Converte o JSON recebido para objeto JavaScript.
+        const medicao = JSON.parse(texto);
+
+        console.log("[MQTT] Dados recebidos:");
+        console.log(medicao);
+
+        // ==========================================
+        // GRAVAÇÃO DA MEDIÇÃO NO BANCO
+        // ==========================================
+
+        try {
+
+            // Envia a medição para a camada de Service.
+            // O Service fará as validações e utilizará
+            // o Repository para gravar no MySQL.
+            const idMedicao = await medicaoService.criar(medicao);
+
+            console.log("");
+            console.log(
+                `[BANCO] Medição salva com sucesso! ID: ${idMedicao}`
+            );
+
+        } catch (erro) {
+
+            console.error("");
+            console.error(
+                "[BANCO] Erro ao salvar medição:",
+                erro.message
+            );
+        }
+
+    } catch (erro) {
+
+        console.error(
+            "[MQTT] Mensagem recebida não contém um JSON válido:",
+            erro.message
+        );
+    }
+
+    console.log("========================================");
+    console.log("");
+});
+</file>
+
+<file path="src/mqtt/mqttClient.js">
+// ==========================================
+// CLIENTE MQTT - WATT VISION
+// ==========================================
+
+// Biblioteca responsável pela comunicação MQTT.
+import mqtt from "mqtt";
+
+// Configurações centralizadas do MQTT.
+import mqttConfig from "../config/mqttConfig.js";
+
+
+// ==========================================
+// CRIAÇÃO DO CLIENTE MQTT
+// ==========================================
+
+// Conecta o Backend ao broker configurado no .env.
+const mqttClient = mqtt.connect(
+    mqttConfig.url,
+    {
+        clientId: mqttConfig.clientId,
+        reconnectPeriod: mqttConfig.reconnectPeriod,
+        connectTimeout: mqttConfig.connectTimeout
+    }
+);
+
+
+// ==========================================
+// EVENTO: CONEXÃO REALIZADA
+// ==========================================
+
+mqttClient.on("connect", () => {
+
+    console.log("");
+    console.log("========================================");
+    console.log("           MQTT - WATT VISION");
+    console.log("========================================");
+
+    console.log("[MQTT] Conectado ao broker com sucesso!");
+
+    console.log("========================================");
+    console.log("");
+
+});
+
+
+// ==========================================
+// EVENTO: TENTATIVA DE RECONEXÃO
+// ==========================================
+
+mqttClient.on("reconnect", () => {
+
+    console.log(
+        "[MQTT] Tentando reconectar ao broker..."
+    );
+
+});
+
+
+// ==========================================
+// EVENTO: CONEXÃO ENCERRADA
+// ==========================================
+
+mqttClient.on("close", () => {
+
+    console.log(
+        "[MQTT] Conexão com o broker encerrada."
+    );
+
+});
+
+
+// ==========================================
+// EVENTO: ERRO MQTT
+// ==========================================
+
+mqttClient.on("error", (erro) => {
+
+    console.error(
+        "[MQTT] Erro:",
+        erro.message
+    );
+
+});
+
+
+// ==========================================
+// EXPORTAÇÃO
+// ==========================================
+
+// Permite que outros módulos utilizem
+// a mesma conexão MQTT.
+export default mqttClient;
+</file>
+
+<file path="src/routes/medicaoRoutes.js">
+// Importa o Router do Express.
+import { Router } from "express";
+
+// Importa o Controller de medições.
+import medicaoController
+    from "../controllers/medicaoController.js";
+
+
+// Cria o roteador.
+const router = Router();
+
+
+// ==========================================
+// ROTAS - MEDIÇÕES
+// ==========================================
+
+
+// GET /api/medicoes
+//
+// Retorna todas as medições.
+router.get(
+    "/",
+    medicaoController.listarTodas
+);
+
+// ==========================================
+// GET /api/medicoes/ultima
+// ==========================================
+// Retorna a medição mais recente do banco.
+// Deve ser declarada antes de futuras rotas
+// dinâmicas, como GET /:id.
+
+router.get(
+    "/ultima",
+    medicaoController.buscarUltima
+);
+
+
+// ==========================================
+// GET /api/medicoes/resumo
+// ==========================================
+// Fornece os indicadores elétricos para
+// os cards do dashboard.
+
+router.get(
+    "/resumo",
+    medicaoController.obterResumo
+);
+
+
+// ==========================================
+// GET /api/medicoes/serie-temporal
+// ==========================================
+// Consulta medições de um PZEM por período.
+// Exemplo: ?id_pzem=1&horas=24
+
+router.get(
+    "/serie-temporal",
+    medicaoController.obterSerieTemporal
+);
+
+
+// ==========================================
+// GET /api/medicoes/ponto/:id/ultima
+// ==========================================
+// Retorna a última medição de cada PZEM
+// associado ao ponto de medição informado.
+
+router.get(
+    "/ponto/:id/ultima",
+    medicaoController.buscarUltimasPorPonto
+);
+
+// ==========================================
+// GET /api/medicoes/consumo
+// ==========================================
+// Calcula consumo e custo por PZEM e período.
+
+router.get(
+    "/consumo",
+    medicaoController.consultarConsumo
+);
+
+
+// POST /api/medicoes
+//
+// Cadastra uma nova medição.
+router.post(
+    "/",
+    medicaoController.criar
+);
+
+
+// Exporta o Router.
+export default router;
+</file>
+
+<file path=".env.example">
+# Configuração do servidor
+PORT=3000
+
+# Configuração do MySQL
+DB_HOST=localhost
+DB_PORT=3306
+DB_USER=root
+DB_PASSWORD=bcd127
+DB_NAME=watt_vision
+
+# ==========================================
+# CONFIGURAÇÃO MQTT
+# ==========================================
+
+MQTT_BROKER_URL=mqtt://SEU_BROKER:1883
+MQTT_TOPIC_MEDICOES=wattvision/medicoes
+</file>
+
+<file path="server.js">
+// ==========================================
+// BACKEND - WATT VISION
+// ==========================================
+
+// Importa a aplicação Express configurada no arquivo src/app.js
+import app from "./src/app.js";
+
+// Inicializa a conexão MQTT do Backend com o broker
+import "./src/mqtt/medicaoSubscriber.js";
+
+
+// ==========================================
+// CONFIGURAÇÃO DO SERVIDOR
+// ==========================================
+
+// Utiliza a porta definida no .env.
+// Caso não exista, utiliza 3000 como padrão.
+const PORT = process.env.PORT || 3000;
+
+
+// ==========================================
+// INICIALIZAÇÃO DO SERVIDOR
+// ==========================================
+
+// Inicia o servidor HTTP do Watt Vision.
+app.listen(PORT, () => {
+
+    console.log("");
+    console.log("========================================");
+    console.log("         BACKEND - WATT VISION");
+    console.log("========================================");
+
+    console.log(`Servidor rodando na porta ${PORT}`);
+
+    console.log("========================================");
+    console.log("");
+});
+</file>
+
+<file path="src/database/monitoramento/medicaoRepository.js">
+// Importa a conexão com o banco de dados MySQL.
+import database from "../../config/database.js";
+
+
+// ==========================================
+// REPOSITORY - MEDIÇÃO
+// ==========================================
+
+class MedicaoRepository {
+
+    async listarTodas() {
+
+        const [medicoes] = await database.query(`
+            SELECT *
+            FROM tbl_medicao
+            ORDER BY data_hora DESC
+        `);
+
+        return medicoes;
+    }
+
+
+    // ======================================
+    // VERIFICAR SE O PZEM EXISTE
+    // ======================================
+
+    async buscarPzemPorId(id_pzem) {
+
+        const [resultado] = await database.query(
+            `
+            SELECT id
+            FROM tbl_pzem
+            WHERE id = ?
+            `,
+            [id_pzem]
+        );
+
+        if (resultado.length === 0) {
+            return null;
+        }
+
+        return resultado[0];
+    }
+
+
+
+    // ==========================================
+    // ÚLTIMAS MEDIÇÕES POR PONTO DE MEDIÇÃO
+    // ==========================================
+    // Retorna a leitura mais recente de cada PZEM
+    // associado ao ponto de medição informado.
+
+    async buscarUltimasPorPonto(idPonto) {
+
+        const [medicoes] = await database.query(
+            `
+            SELECT
+                m.id,
+                m.id_pzem,
+                m.data_hora,
+                m.tensao,
+                m.corrente,
+                m.potencia_ativa,
+                m.energia_acumulada,
+                m.frequencia,
+                m.fator_potencia
+            FROM tbl_medicao m
+            INNER JOIN tbl_pzem p
+                ON p.id = m.id_pzem
+            WHERE p.id_ponto_medicao = ?
+            AND m.id = (
+                SELECT m2.id
+                FROM tbl_medicao m2
+                WHERE m2.id_pzem = m.id_pzem
+                ORDER BY m2.data_hora DESC, m2.id DESC
+                LIMIT 1
+            )
+            ORDER BY m.id_pzem
+            `,
+            [idPonto]
+        );
+
+        return medicoes;
+    }
+
+
+    // ==========================================
+// CONSULTAR MEDIÇÕES PARA CÁLCULO DE CONSUMO
+// ==========================================
+// Busca as leituras de um PZEM dentro de um
+// período, mantendo a ordem cronológica.
+
+async buscarMedicoesParaConsumo(idPzem, inicio, fim) {
+
+    const [medicoes] = await database.query(
+        `
+        SELECT
+            id,
+            id_pzem,
+            data_hora,
+            energia_acumulada
+        FROM tbl_medicao
+        WHERE id_pzem = ?
+          AND data_hora >= ?
+          AND data_hora < DATE_ADD(?, INTERVAL 1 DAY)
+        ORDER BY data_hora ASC, id ASC
+        `,
+        [idPzem, inicio, fim]
+    );
+
+    return medicoes;
+}
+
+
+    // ==========================================
+    // CONSULTAR TARIFA VIGENTE DO PZEM
+    // ==========================================
+    // Localiza a empresa proprietária do ponto
+    // de medição e procura uma tarifa ativa
+    // que cubra todo o período informado.
+    //
+    // Esta primeira versão exige uma única
+    // tarifa para todo o intervalo.
+
+    async buscarTarifaParaPeriodo(idPzem, inicio, fim) {
+
+        const [tarifas] = await database.query(
+            `
+            SELECT
+                t.id,
+                t.descricao,
+                t.valor_kwh,
+                t.data_inicial,
+                t.data_final
+            FROM tbl_tarifa t
+            INNER JOIN tbl_local l
+                ON l.id_empresa = t.id_empresa
+            INNER JOIN tbl_ponto_medicao pm
+                ON pm.id_local = l.id
+            INNER JOIN tbl_pzem p
+                ON p.id_ponto_medicao = pm.id
+            WHERE p.id = ?
+            AND t.status = 'ATIVA'
+            AND t.data_inicial <= ?
+            AND (
+                t.data_final IS NULL
+                OR t.data_final >= ?
+            )
+            ORDER BY t.data_inicial DESC, t.id DESC
+            `,
+            [idPzem, inicio, fim]
+        );
+
+        return tarifas;
+    }
+
+
+    // ======================================
+    // CRIAR UMA NOVA MEDIÇÃO
+    // ======================================
+
+    async criar(medicao) {
+
+        const {
+            id_pzem,
+            data_hora,
+            tensao,
+            corrente,
+            potencia_ativa,
+            energia_acumulada,
+            frequencia,
+            fator_potencia
+        } = medicao;
+
+        const [resultado] = await database.query(
+            `
+            INSERT INTO tbl_medicao
+            (
+                id_pzem,
+                data_hora,
+                tensao,
+                corrente,
+                potencia_ativa,
+                energia_acumulada,
+                frequencia,
+                fator_potencia
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            `,
+            [
+                id_pzem,
+                data_hora,
+                tensao,
+                corrente,
+                potencia_ativa,
+                energia_acumulada,
+                frequencia,
+                fator_potencia
+            ]
+        );
+
+        return resultado.insertId;
+    }
+
+
+    // ======================================
+    // BUSCAR A ÚLTIMA MEDIÇÃO NO MYSQL
+    // ======================================
+    // Consulta a tabela tbl_medicao e retorna
+    // apenas o registro com a data mais recente.
+
+    async buscarUltima() {
+
+        const [resultado] = await database.query(`
+            SELECT
+                id,
+                id_pzem,
+                data_hora,
+                tensao,
+                corrente,
+                potencia_ativa,
+                energia_acumulada,
+                frequencia,
+                fator_potencia
+            FROM tbl_medicao
+            ORDER BY data_hora DESC, id DESC
+            LIMIT 1
+        `);
+
+        // Se não houver registros, retorna null.
+        if (resultado.length === 0) {
+            return null;
+        }
+
+        // Retorna o objeto da medição encontrada.
+        return resultado[0];
+    }
+
+
+    // ==========================================
+    // CONSULTAR HISTÓRICO POR PZEM E PERÍODO
+    // ==========================================
+    // Retorna as medições em ordem cronológica,
+    // permitindo a construção de gráficos.
+
+    async obterSerieTemporal(idPzem, horas) {
+
+        const [medicoes] = await database.query(
+            `
+            SELECT
+                id,
+                id_pzem,
+                data_hora,
+                tensao,
+                corrente,
+                potencia_ativa,
+                energia_acumulada,
+                frequencia,
+                fator_potencia
+            FROM tbl_medicao
+            WHERE id_pzem = ?
+            AND data_hora >= DATE_SUB(
+                NOW(),
+                INTERVAL ? HOUR
+            )
+            ORDER BY data_hora ASC, id ASC
+            LIMIT 10000
+            `,
+            [idPzem, horas]
+        );
+
+        return medicoes;
+    }
+
+
+
+}
+
+
+// Exporta uma instância do Repository.
+export default new MedicaoRepository();
+</file>
+
+<file path="src/routes/index.js">
+/**
+ * ==========================================
+ * WATT VISION - ROTAS PRINCIPAIS DA API
+ * ==========================================
+ *
+ * Este arquivo centraliza as rotas dos
+ * diferentes módulos do backend.
+ */
+
+// Importa o Router do Express.
+import { Router } from "express";
+
+// ==========================================
+// IMPORTAÇÃO DAS ROTAS
+// ==========================================
+
+// Rotas responsáveis pelas medições elétricas.
+import medicaoRoutes from "./medicaoRoutes.js";
+
+// Rotas responsáveis pelos locais.
+import localRoutes from "./localRoutes.js";
+
+// Rotas responsáveis pelos setores.
+import setorRoutes from "./setorRoutes.js";
+
+// Rotas responsáveis pelos equipamentos.
+import equipamentoRoutes from "./equipamentoRoutes.js";
+
+// ==========================================
+// CRIAÇÃO DO ROTEADOR PRINCIPAL
+// ==========================================
+
+// O router deve ser criado ANTES de registrar
+// qualquer rota com router.use().
+const router = Router();
+
+// ==========================================
+// REGISTRO DAS ROTAS
+// ==========================================
+
+// Endpoints de medições.
+// Exemplo: GET /api/medicoes
+router.use("/medicoes", medicaoRoutes);
+
+// Endpoints de locais.
+// Exemplo: GET /api/locais
+router.use("/locais", localRoutes);
+
+// Endpoints de setores.
+// Exemplo: GET /api/setores
+router.use("/setores", setorRoutes);
+
+// Endpoints de equipamentos.
+// Exemplo: GET /api/equipamentos
+router.use("/equipamentos", equipamentoRoutes);
+
+// ==========================================
+// EXPORTAÇÃO DO ROTEADOR
+// ==========================================
+
+// Disponibiliza o roteador para o app.js.
+export default router;
+</file>
+
+<file path="src/services/medicaoService.js">
+// Importa o Repository responsável
+// pelas operações da tabela tbl_medicao.
+import medicaoRepository
+    from "../database/monitoramento/medicaoRepository.js";
+
+
+// ==========================================
+// SERVICE - MEDIÇÃO
+// ==========================================
+//
+// Aqui ficam as regras de negócio
+// relacionadas às medições.
+
+class MedicaoService {
+
+    // ======================================
+    // LISTAR TODAS AS MEDIÇÕES
+    // ======================================
+
+    async listarTodas() {
+
+        const medicoes =
+            await medicaoRepository.listarTodas();
+
+        return medicoes;
+    }
+
+
+    // ======================================
+    // CRIAR UMA NOVA MEDIÇÃO
+    // ======================================
+
+    async criar(dados) {
+
+        // Extrai os dados recebidos.
+        const {
+            id_pzem,
+            data_hora,
+            tensao,
+            corrente,
+            potencia_ativa,
+            energia_acumulada,
+            frequencia,
+            fator_potencia
+        } = dados;
+
+
+        // ==================================
+        // VALIDAÇÕES BÁSICAS
+        // ==================================
+
+        // O PZEM precisa estar identificado.
+        if (id_pzem === undefined || id_pzem === null) {
+            throw new Error(
+                "O campo id_pzem é obrigatório."
+            );
+        }
+        // A data e hora da medição precisam ser informadas.
+        // Isso preserva o momento real em que o ESP32
+        // realizou a leitura, inclusive em medições offline.
+        if (!data_hora) {
+            throw new Error(
+                "O campo data_hora é obrigatório."
+            );
+        }
+
+
+        // As grandezas elétricas também
+        // precisam estar presentes.
+        if (
+            tensao === undefined ||
+            corrente === undefined ||
+            potencia_ativa === undefined ||
+            energia_acumulada === undefined ||
+            frequencia === undefined ||
+            fator_potencia === undefined
+        ) {
+            throw new Error(
+                "Todas as grandezas elétricas são obrigatórias."
+            );
+        }
+
+
+        // Fator de potência deve ficar
+        // entre 0 e 1.
+        if (
+            fator_potencia < 0 ||
+            fator_potencia > 1
+        ) {
+            throw new Error(
+                "O fator de potência deve estar entre 0 e 1."
+            );
+        }
+
+
+        // Monta o objeto que será enviado
+        // para o Repository.
+        const medicao = {
+            id_pzem,
+            data_hora,
+            tensao,
+            corrente,
+            potencia_ativa,
+            energia_acumulada,
+            frequencia,
+            fator_potencia
+        };
+
+        // ==========================================
+        // VALIDAÇÃO DA EXISTÊNCIA DO PZEM
+        // ==========================================
+
+        // Consulta o banco para verificar se o
+        // PZEM informado está cadastrado.
+        const pzem = await medicaoRepository.buscarPzemPorId(
+            id_pzem
+        );
+
+        // Se o PZEM não existir, interrompe o cadastro.
+        if (!pzem) {
+            throw new Error(
+                `PZEM com ID ${id_pzem} não encontrado.`
+            );
+        }
+
+        // Solicita ao Repository a gravação.
+        const id =
+            await medicaoRepository.criar(medicao);
+
+
+        // Retorna o ID da medição criada.
+        return id;
+
+
+    }
+
+
+
+        // ======================================
+        // BUSCAR A ÚLTIMA MEDIÇÃO
+        // ======================================
+        // Centraliza a operação de consulta.
+        // Futuramente poderá aplicar regras
+        // de acesso por empresa, local ou setor.
+
+        async buscarUltima() {
+
+            // Consulta a medição mais recente
+            // utilizando o Repository.
+            const medicao =
+                await medicaoRepository.buscarUltima();
+
+            return medicao;
+        }
+
+
+        // ======================================
+        // PREPARAR RESUMO PARA O DASHBOARD
+        // ======================================
+        // Utiliza a medição mais recente.
+        // Não mistura valores de sensores diferentes.
+
+        async obterResumo() {
+            const medicao = await medicaoRepository.buscarUltima();
+
+            if (!medicao) {
+                return null;
+            }
+
+            return {
+                id_medicao: medicao.id,
+                id_pzem: medicao.id_pzem,
+                data_hora: medicao.data_hora,
+                tensao: Number(medicao.tensao),
+                corrente: Number(medicao.corrente),
+                potencia_ativa: Number(medicao.potencia_ativa),
+                energia_acumulada: Number(medicao.energia_acumulada),
+                frequencia: Number(medicao.frequencia),
+                fator_potencia: Number(medicao.fator_potencia)
+            };
+        }
+
+        // ==========================================
+        // VALIDAR FILTROS DA SÉRIE TEMPORAL
+        // ==========================================
+        // Define um período limitado para evitar
+        // consultas excessivamente grandes.
+
+        async obterSerieTemporal(idPzem, horas = 24) {
+
+            const id = Number(idPzem);
+            const periodo = Number(horas);
+
+            // O identificador deve ser um inteiro positivo.
+            if (!Number.isSafeInteger(id) || id <= 0) {
+                const erro = new Error(
+                    "Informe um id_pzem válido."
+                );
+                erro.status = 400;
+                throw erro;
+            }
+
+            // Permite consultar de 1 até 168 horas (7 dias).
+            if (
+                !Number.isInteger(periodo) ||
+                periodo < 1 ||
+                periodo > 168
+            ) {
+                const erro = new Error(
+                    "O período deve estar entre 1 e 168 horas."
+                );
+                erro.status = 400;
+                throw erro;
+            }
+
+            return await medicaoRepository.obterSerieTemporal(
+                id,
+                periodo
+            );
+        }
+
+
+        // ==========================================
+        // BUSCAR ÚLTIMAS MEDIÇÕES POR PONTO
+        // ==========================================
+        // Valida o identificador do ponto de medição
+        // e solicita ao Repository as últimas leituras
+        // dos PZEMs associados a esse ponto.
+
+        async buscarUltimasPorPonto(idPonto) {
+
+            // Converte o identificador recebido para número.
+            const id = Number(idPonto);
+
+            // Verifica se o identificador é um inteiro positivo.
+            if (!Number.isSafeInteger(id) || id <= 0) {
+
+                const erro = new Error(
+                    "O ID do ponto de medição é inválido."
+                );
+
+                erro.status = 400;
+
+                throw erro;
+            }
+
+            // Consulta o Repository e retorna as medições.
+            const medicoes =
+                await medicaoRepository.buscarUltimasPorPonto(id);
+
+            return medicoes;
+        }
+
+
+        // ==========================================
+// CALCULAR CONSUMO E CUSTO DE ENERGIA
+// ==========================================
+// Calcula as diferenças entre leituras
+// consecutivas do mesmo PZEM.
+//
+// Nesta versão, se houver reinicialização
+// do contador, o cálculo é interrompido
+// para evitar apresentar um valor incorreto.
+
+async calcularConsumo(idPzem, inicio, fim) {
+
+    // Valida o identificador do PZEM.
+    const id = Number(idPzem);
+
+    if (!Number.isSafeInteger(id) || id <= 0) {
+        const erro = new Error("ID do PZEM inválido.");
+        erro.status = 400;
+        throw erro;
+    }
+
+    // Valida datas no formato YYYY-MM-DD.
+    const formatoData = /^\d{4}-\d{2}-\d{2}$/;
+
+    const dataValida = (valor) => {
+        if (!formatoData.test(valor ?? "")) return false;
+
+        const data = new Date(`${valor}T00:00:00Z`);
+
+        return !Number.isNaN(data.getTime()) &&
+            data.toISOString().slice(0, 10) === valor;
+    };
+
+    if (!dataValida(inicio) || !dataValida(fim) || inicio > fim) {
+        const erro = new Error(
+            "Informe datas válidas no formato YYYY-MM-DD."
+        );
+        erro.status = 400;
+        throw erro;
+    }
+
+    // Verifica se o PZEM está cadastrado.
+    const pzem = await medicaoRepository.buscarPzemPorId(id);
+
+    if (!pzem) {
+        const erro = new Error("PZEM não encontrado.");
+        erro.status = 404;
+        throw erro;
+    }
+
+    // Busca as medições dentro do intervalo.
+    const medicoes =
+        await medicaoRepository.buscarMedicoesParaConsumo(
+            id, inicio, fim
+        );
+
+    // Duas leituras são necessárias para
+    // calcular uma diferença de energia.
+    if (medicoes.length < 2) {
+        return {
+            id_pzem: id,
+            inicio,
+            fim,
+            quantidade_medicoes: medicoes.length,
+            consumo_kwh: null,
+            custo_estimado: null,
+            mensagem: "Medições insuficientes para calcular o consumo."
+        };
+    }
+
+    let consumo = 0;
+
+    // Soma as diferenças positivas entre
+    // leituras consecutivas.
+    for (let i = 1; i < medicoes.length; i++) {
+
+        const anterior = Number(
+            medicoes[i - 1].energia_acumulada
+        );
+
+        const atual = Number(
+            medicoes[i].energia_acumulada
+        );
+
+        if (
+            !Number.isFinite(anterior) ||
+            !Number.isFinite(atual) ||
+            anterior < 0 ||
+            atual < 0
+        ) {
+            const erro = new Error(
+                "Foram encontradas leituras de energia inválidas."
+            );
+            erro.status = 422;
+            throw erro;
+        }
+
+        const diferenca = atual - anterior;
+
+        // Uma queda pode indicar reinicialização,
+        // substituição ou alteração do contador.
+        if (diferenca < 0) {
+            const erro = new Error(
+                "Foi detectada uma redução no contador de energia. " +
+                "O período precisa ser analisado antes do cálculo."
+            );
+            erro.status = 422;
+            throw erro;
+        }
+
+        consumo += diferenca;
+    }
+
+    // Busca a tarifa aplicável à empresa.
+    const tarifas =
+        await medicaoRepository.buscarTarifaParaPeriodo(
+            id, inicio, fim
+        );
+
+    // Exige exatamente uma tarifa válida.
+    // Evita selecionar arbitrariamente uma
+    // tarifa quando há vigências sobrepostas.
+    if (tarifas.length !== 1) {
+        const erro = new Error(
+            "É necessário existir exatamente uma tarifa ativa " +
+            "que cubra todo o período consultado."
+        );
+        erro.status = 422;
+        throw erro;
+    }
+
+    const tarifa = tarifas[0];
+    const valorKwh = Number(tarifa.valor_kwh);
+
+    const custo = consumo * valorKwh;
+
+    return {
+        id_pzem: id,
+        inicio,
+        fim,
+        quantidade_medicoes: medicoes.length,
+        primeira_medicao: medicoes[0].data_hora,
+        ultima_medicao: medicoes[medicoes.length - 1].data_hora,
+        consumo_kwh: Number(consumo.toFixed(6)),
+        tarifa: {
+            id: tarifa.id,
+            descricao: tarifa.descricao,
+            valor_kwh: valorKwh
+        },
+        custo_estimado: Number(custo.toFixed(2)),
+        moeda: "BRL"
+    };
+}
+
+
+}
+
+
+// Exporta uma instância do Service.
+export default new MedicaoService();
+</file>
+
+</files>

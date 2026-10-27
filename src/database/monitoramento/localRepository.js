@@ -9,10 +9,18 @@ import database from "../../config/database.js";
 
 class LocalRepository {
 
-    // Lista os locais cadastrados.
+    // Lista todos os locais cadastrados.
     async listarTodos() {
         const [locais] = await database.query(`
-            SELECT id, nome, descricao, status, id_empresa
+            SELECT
+                id,
+                id_empresa,
+                codigo,
+                nome,
+                endereco,
+                responsavel,
+                descricao,
+                status
             FROM tbl_local
             ORDER BY nome ASC
         `);
@@ -24,7 +32,15 @@ class LocalRepository {
     async buscarPorId(id) {
         const [locais] = await database.query(
             `
-            SELECT id, nome, descricao, status, id_empresa
+            SELECT
+                id,
+                id_empresa,
+                codigo,
+                nome,
+                endereco,
+                responsavel,
+                descricao,
+                status
             FROM tbl_local
             WHERE id = ?
             `,
@@ -44,19 +60,47 @@ class LocalRepository {
         return empresas[0] ?? null;
     }
 
+    // Busca um local pelo código.
+    // O parâmetro idIgnorar permite desconsiderar
+    // o próprio registro durante uma atualização.
+    async buscarPorCodigo(codigo, idIgnorar = null) {
+        const [locais] = await database.query(
+            `
+            SELECT id, codigo
+            FROM tbl_local
+            WHERE codigo = ?
+              AND (? IS NULL OR id <> ?)
+            LIMIT 1
+            `,
+            [codigo, idIgnorar, idIgnorar]
+        );
+
+        return locais[0] ?? null;
+    }
+
     // Insere um novo local.
     async criar(dados) {
         const [resultado] = await database.query(
             `
-            INSERT INTO tbl_local
-                (nome, descricao, status, id_empresa)
-            VALUES (?, ?, ?, ?)
+            INSERT INTO tbl_local (
+                id_empresa,
+                codigo,
+                nome,
+                endereco,
+                responsavel,
+                descricao,
+                status
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?)
             `,
             [
+                dados.id_empresa,
+                dados.codigo,
                 dados.nome,
-                dados.descricao,
-                dados.status,
-                dados.id_empresa
+                dados.endereco ?? null,
+                dados.responsavel ?? null,
+                dados.descricao ?? null,
+                dados.status ?? "Ativo"
             ]
         );
 
@@ -68,17 +112,24 @@ class LocalRepository {
         const [resultado] = await database.query(
             `
             UPDATE tbl_local
-            SET nome = ?,
+            SET
+                id_empresa = ?,
+                codigo = ?,
+                nome = ?,
+                endereco = ?,
+                responsavel = ?,
                 descricao = ?,
-                status = ?,
-                id_empresa = ?
+                status = ?
             WHERE id = ?
             `,
             [
-                dados.nome,
-                dados.descricao,
-                dados.status,
                 dados.id_empresa,
+                dados.codigo,
+                dados.nome,
+                dados.endereco ?? null,
+                dados.responsavel ?? null,
+                dados.descricao ?? null,
+                dados.status,
                 id
             ]
         );
