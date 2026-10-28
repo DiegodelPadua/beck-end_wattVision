@@ -1,26 +1,64 @@
-// Importa o Service responsável
-// pelas regras de negócio das medições.
-import medicaoService
-    from "../services/medicaoService.js";
 
+import medicaoService from "../services/medicaoService.js";
 
 // ==========================================
-// CONTROLLER - MEDIÇÃO
+// WATT VISION - CONTROLLER DE MEDIÇÕES
 // ==========================================
+// Responsável por receber requisições HTTP,
+// chamar os métodos do Service e devolver
+// respostas JSON padronizadas.
 //
-// Recebe as requisições HTTP,
-// chama o Service e devolve a resposta.
+// O Controller não realiza consultas SQL
+// nem valida as grandezas elétricas.
+//
+// Essas responsabilidades pertencem,
+// respectivamente, ao Repository e Service.
 
 class MedicaoController {
 
     // ======================================
-    // LISTAR TODAS AS MEDIÇÕES
+    // TRATAMENTO PADRONIZADO DE ERROS
     // ======================================
+    // Preserva os códigos HTTP definidos
+    // pelo Service:
+    //
+    // 400 - Dados inválidos
+    // 404 - Recurso não encontrado
+    // 409 - Conflito com regras de negócio
+    // 422 - Dados inconsistentes
+    // 500 - Erro interno do servidor
+
+    tratarErro(erro, res, contexto) {
+        // Registra o erro completo no terminal
+        // para facilitar o diagnóstico.
+        console.error(`[MEDIÇÕES] ${contexto}:`, erro);
+
+        // Somente utiliza códigos HTTP válidos.
+        // Erros inesperados recebem status 500.
+        const status =
+            Number.isInteger(erro.status) &&
+            erro.status >= 400 &&
+            erro.status <= 599
+                ? erro.status
+                : 500;
+
+        return res.status(status).json({
+            sucesso: false,
+            mensagem:
+                status === 500
+                    ? "Erro interno ao processar a medição."
+                    : erro.message
+        });
+    }
+
+    // ======================================
+    // GET /api/medicoes
+    // ======================================
+    // Retorna todas as medições cadastradas
+    // em ordem decrescente de data.
 
     async listarTodas(req, res) {
-
         try {
-
             const medicoes =
                 await medicaoService.listarTodas();
 
@@ -31,69 +69,25 @@ class MedicaoController {
             });
 
         } catch (erro) {
-
-            console.error(
-                "Erro ao listar medições:",
-                erro
+            return this.tratarErro(
+                erro,
+                res,
+                "Erro ao listar medições"
             );
-
-            return res.status(500).json({
-                sucesso: false,
-                mensagem:
-                    "Erro interno ao buscar as medições."
-            });
         }
-
     }
 
-
-        // ======================================
-        // OBTER RESUMO ELÉTRICO
-        // ======================================
-        // Prepara a resposta HTTP para o dashboard.
-
-        async obterResumo(req, res) {
-            try {
-                const resumo = await medicaoService.obterResumo();
-
-                if (!resumo) {
-                    return res.status(404).json({
-                        sucesso: false,
-                        mensagem: "Nenhuma medição disponível."
-                    });
-                }
-
-                return res.status(200).json({
-                    sucesso: true,
-                    dados: resumo
-                });
-
-            } catch (erro) {
-                console.error("Erro ao obter resumo:", erro);
-
-                return res.status(500).json({
-                    sucesso: false,
-                    mensagem: "Erro interno ao obter resumo elétrico."
-                });
-            }
-        }
-
-
     // ======================================
-    // BUSCAR A ÚLTIMA MEDIÇÃO
+    // GET /api/medicoes/ultima
     // ======================================
-    // Recebe a requisição HTTP, consulta o
-    // Service e devolve a última medição.
+    // Consulta a medição mais recente
+    // registrada no MySQL.
 
     async buscarUltima(req, res) {
-
         try {
-
-            // Solicita ao Service a medição mais recente.
             const medicao =
                 await medicaoService.buscarUltima();
 
-            // Caso o banco ainda não tenha medições.
             if (!medicao) {
                 return res.status(404).json({
                     sucesso: false,
@@ -101,81 +95,105 @@ class MedicaoController {
                 });
             }
 
-            // Retorna somente um registro.
             return res.status(200).json({
                 sucesso: true,
                 dados: medicao
             });
 
         } catch (erro) {
-
-            // Registra o erro para diagnóstico.
-            console.error(
-                "Erro ao buscar última medição:",
-                erro
+            return this.tratarErro(
+                erro,
+                res,
+                "Erro ao buscar última medição"
             );
-
-            return res.status(500).json({
-                sucesso: false,
-                mensagem: "Erro interno ao buscar a última medição."
-            });
         }
     }
 
+    // ======================================
+    // GET /api/medicoes/resumo
+    // ======================================
+    // Fornece os indicadores elétricos
+    // utilizados nos cards do dashboard.
 
-    // ==========================================
-    // CONSULTAR SÉRIE TEMPORAL
-    // ==========================================
-    // Recebe os filtros e retorna as medições
-    // para os gráficos históricos do dashboard.
+    async obterResumo(req, res) {
+        try {
+            const resumo =
+                await medicaoService.obterResumo();
+
+            if (!resumo) {
+                return res.status(404).json({
+                    sucesso: false,
+                    mensagem: "Nenhuma medição disponível."
+                });
+            }
+
+            return res.status(200).json({
+                sucesso: true,
+                dados: resumo
+            });
+
+        } catch (erro) {
+            return this.tratarErro(
+                erro,
+                res,
+                "Erro ao obter resumo elétrico"
+            );
+        }
+    }
+
+    // ======================================
+    // GET /api/medicoes/serie-temporal
+    // ======================================
+    // Consulta o histórico de um PZEM
+    // dentro das últimas horas.
+    //
+    // Exemplo:
+    // ?id_pzem=1&horas=24
 
     async obterSerieTemporal(req, res) {
         try {
             const { id_pzem, horas } = req.query;
 
-            const dados = await medicaoService.obterSerieTemporal(
-                id_pzem,
-                horas
-            );
+            // Se horas não for informado,
+            // utiliza o padrão de 24 horas.
+            const periodo =
+                horas === undefined ? 24 : horas;
+
+            const medicoes =
+                await medicaoService.obterSerieTemporal(
+                    id_pzem,
+                    periodo
+                );
 
             return res.status(200).json({
                 sucesso: true,
-                quantidade: dados.length,
-                dados
+                quantidade: medicoes.length,
+                dados: medicoes
             });
 
         } catch (erro) {
-            console.error("Erro na série temporal:", erro);
-
-            // Erros de validação dos filtros.
-            if (erro.status === 400) {
-                return res.status(400).json({
-                    sucesso: false,
-                    mensagem: erro.message
-                });
-            }
-
-            return res.status(500).json({
-                sucesso: false,
-                mensagem: "Erro interno ao consultar histórico."
-            });
+            return this.tratarErro(
+                erro,
+                res,
+                "Erro ao consultar série temporal"
+            );
         }
     }
 
-
-    // ==========================================
-    // ÚLTIMAS MEDIÇÕES DE UM PONTO
-    // ==========================================
-    // Consulta as últimas leituras dos PZEMs
-    // associados ao ponto informado na URL.
+    // ======================================
+    // GET /api/medicoes/ponto/:id/ultima
+    // ======================================
+    // Retorna a última leitura de cada
+    // PZEM registrada no ponto informado.
 
     async buscarUltimasPorPonto(req, res) {
-
         try {
             const { id } = req.params;
 
             const medicoes =
-                await medicaoService.buscarUltimasPorPonto(id);
+                await medicaoService.buscarUltimasPorPonto(
+                    id
+                );
 
             return res.status(200).json({
                 sucesso: true,
@@ -185,36 +203,30 @@ class MedicaoController {
             });
 
         } catch (erro) {
-            console.error(
-                "Erro ao consultar ponto de medição:",
-                erro
+            return this.tratarErro(
+                erro,
+                res,
+                "Erro ao consultar ponto de medição"
             );
-
-            if (erro.status === 400) {
-                return res.status(400).json({
-                    sucesso: false,
-                    mensagem: erro.message
-                });
-            }
-
-            return res.status(500).json({
-                sucesso: false,
-                mensagem: "Erro interno ao consultar o ponto de medição."
-            });
         }
     }
 
-
-    // ==========================================
-    // CONSULTAR CONSUMO E CUSTO
-    // ==========================================
-    // Recebe os parâmetros do Postman ou
-    // Front-end e solicita o cálculo ao Service.
+    // ======================================
+    // GET /api/medicoes/consumo
+    // ======================================
+    // Calcula o consumo energético em kWh
+    // e o custo estimado em reais.
+    //
+    // Exemplo:
+    // ?id_pzem=1&inicio=2026-10-28&fim=2026-10-28
 
     async consultarConsumo(req, res) {
-
         try {
-            const { id_pzem, inicio, fim } = req.query;
+            const {
+                id_pzem,
+                inicio,
+                fim
+            } = req.query;
 
             const resultado =
                 await medicaoService.calcularConsumo(
@@ -229,73 +241,48 @@ class MedicaoController {
             });
 
         } catch (erro) {
-
-            console.error(
-                "Erro ao calcular consumo:",
-                erro
+            return this.tratarErro(
+                erro,
+                res,
+                "Erro ao calcular consumo"
             );
-
-            return res.status(erro.status || 500).json({
-                sucesso: false,
-                mensagem: erro.status
-                    ? erro.message
-                    : "Erro interno ao calcular consumo."
-            });
         }
     }
 
-
     // ======================================
-    // CRIAR UMA NOVA MEDIÇÃO
+    // POST /api/medicoes
     // ======================================
+    // Recebe uma nova leitura elétrica.
+    //
+    // O Service valida os valores, consulta
+    // o PZEM e identifica automaticamente
+    // o ponto de medição correspondente.
 
     async criar(req, res) {
-
         try {
-
-            // req.body contém o JSON enviado
-            // para o Backend.
-            const dados = req.body;
-
-
-            // Envia os dados para o Service.
             const id =
-                await medicaoService.criar(dados);
+                await medicaoService.criar(req.body);
 
-
-            // HTTP 201 significa:
-            // recurso criado com sucesso.
             return res.status(201).json({
-
                 sucesso: true,
-
-                mensagem:
-                    "Medição cadastrada com sucesso.",
-
+                mensagem: "Medição cadastrada com sucesso.",
                 id_medicao: id
             });
 
         } catch (erro) {
-
-            console.error(
-                "Erro ao cadastrar medição:",
-                erro
+            return this.tratarErro(
+                erro,
+                res,
+                "Erro ao cadastrar medição"
             );
-
-
-            // Por enquanto retornamos 400
-            // para erros ocorridos durante
-            // a validação/cadastro.
-            return res.status(400).json({
-
-                sucesso: false,
-
-                mensagem: erro.message
-            });
         }
     }
 }
 
+// ==========================================
+// EXPORTAÇÃO DO CONTROLLER
+// ==========================================
+// Exporta uma instância para utilização
+// pelo arquivo medicaoRoutes.js.
 
-// Exporta uma instância do Controller.
 export default new MedicaoController();

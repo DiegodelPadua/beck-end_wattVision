@@ -4,23 +4,34 @@ import setorService from "../services/setorService.js";
 // ==========================================
 // CONTROLLER - SETORES
 // ==========================================
-// Recebe requisições HTTP e devolve JSON.
+// Recebe as requisições HTTP, encaminha
+// ao Service e devolve respostas JSON.
 
 class SetorController {
 
-    // Padroniza o tratamento de erros.
+    // Centraliza o tratamento de erros.
     tratarErro(erro, res) {
         console.error("[SETOR]", erro);
 
-        return res.status(erro.status || 500).json({
+        const status =
+            Number.isInteger(erro.status) &&
+            erro.status >= 400 &&
+            erro.status <= 599
+                ? erro.status
+                : 500;
+
+        return res.status(status).json({
             sucesso: false,
-            mensagem: erro.status
-                ? erro.message
-                : "Erro interno ao processar o setor."
+            mensagem:
+                status !== 500
+                    ? erro.message
+                    : "Erro interno ao processar o setor."
         });
     }
 
+    // ======================================
     // GET /api/setores
+    // ======================================
     async listarTodos(req, res) {
         try {
             const setores = await setorService.listarTodos();
@@ -35,11 +46,14 @@ class SetorController {
         }
     }
 
+    // ======================================
     // GET /api/setores/:id
+    // ======================================
     async buscarPorId(req, res) {
         try {
-            const setor =
-                await setorService.buscarPorId(req.params.id);
+            const setor = await setorService.buscarPorId(
+                req.params.id
+            );
 
             return res.status(200).json({
                 sucesso: true,
@@ -50,7 +64,9 @@ class SetorController {
         }
     }
 
+    // ======================================
     // GET /api/setores/local/:idLocal
+    // ======================================
     async listarPorLocal(req, res) {
         try {
             const setores = await setorService.listarPorLocal(
@@ -67,10 +83,14 @@ class SetorController {
         }
     }
 
+    // ======================================
     // POST /api/setores
+    // ======================================
     async criar(req, res) {
         try {
-            const id = await setorService.criar(req.body);
+            const id = await setorService.criar(
+                req.body
+            );
 
             return res.status(201).json({
                 sucesso: true,
@@ -82,7 +102,9 @@ class SetorController {
         }
     }
 
+    // ======================================
     // PUT /api/setores/:id
+    // ======================================
     async atualizar(req, res) {
         try {
             const setor = await setorService.atualizar(
@@ -92,6 +114,7 @@ class SetorController {
 
             return res.status(200).json({
                 sucesso: true,
+                mensagem: "Setor atualizado com sucesso.",
                 dados: setor
             });
         } catch (erro) {
@@ -99,7 +122,9 @@ class SetorController {
         }
     }
 
+    // ======================================
     // PATCH /api/setores/:id/status
+    // ======================================
     async atualizarStatus(req, res) {
         try {
             const setor = await setorService.atualizarStatus(
@@ -109,6 +134,7 @@ class SetorController {
 
             return res.status(200).json({
                 sucesso: true,
+                mensagem: "Status do setor atualizado com sucesso.",
                 dados: setor
             });
         } catch (erro) {

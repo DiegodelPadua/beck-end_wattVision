@@ -4,7 +4,8 @@ import localService from "../services/localService.js";
 // ==========================================
 // CONTROLLER - LOCAIS
 // ==========================================
-// Recebe as requisições HTTP e devolve JSON.
+// Recebe as requisições HTTP, encaminha
+// ao Service e devolve respostas JSON.
 
 class LocalController {
 
@@ -12,15 +13,25 @@ class LocalController {
     tratarErro(erro, res) {
         console.error("[LOCAL]", erro);
 
-        return res.status(erro.status || 500).json({
+        const status =
+            Number.isInteger(erro.status) &&
+            erro.status >= 400 &&
+            erro.status <= 599
+                ? erro.status
+                : 500;
+
+        return res.status(status).json({
             sucesso: false,
-            mensagem: erro.status
-                ? erro.message
-                : "Erro interno ao processar o local."
+            mensagem:
+                status !== 500
+                    ? erro.message
+                    : "Erro interno ao processar o local."
         });
     }
 
+    // ======================================
     // GET /api/locais
+    // ======================================
     async listarTodos(req, res) {
         try {
             const locais = await localService.listarTodos();
@@ -30,42 +41,54 @@ class LocalController {
                 quantidade: locais.length,
                 dados: locais
             });
+
         } catch (erro) {
             return this.tratarErro(erro, res);
         }
     }
 
+    // ======================================
     // GET /api/locais/:id
+    // ======================================
     async buscarPorId(req, res) {
         try {
-            const local =
-                await localService.buscarPorId(req.params.id);
+            const local = await localService.buscarPorId(
+                req.params.id
+            );
 
             return res.status(200).json({
                 sucesso: true,
                 dados: local
             });
+
         } catch (erro) {
             return this.tratarErro(erro, res);
         }
     }
 
+    // ======================================
     // POST /api/locais
+    // ======================================
     async criar(req, res) {
         try {
-            const id = await localService.criar(req.body);
+            const id = await localService.criar(
+                req.body
+            );
 
             return res.status(201).json({
                 sucesso: true,
                 mensagem: "Local cadastrado com sucesso.",
                 id_local: id
             });
+
         } catch (erro) {
             return this.tratarErro(erro, res);
         }
     }
 
+    // ======================================
     // PUT /api/locais/:id
+    // ======================================
     async atualizar(req, res) {
         try {
             const local = await localService.atualizar(
@@ -75,14 +98,18 @@ class LocalController {
 
             return res.status(200).json({
                 sucesso: true,
+                mensagem: "Local atualizado com sucesso.",
                 dados: local
             });
+
         } catch (erro) {
             return this.tratarErro(erro, res);
         }
     }
 
+    // ======================================
     // PATCH /api/locais/:id/status
+    // ======================================
     async atualizarStatus(req, res) {
         try {
             const local = await localService.atualizarStatus(
@@ -92,8 +119,10 @@ class LocalController {
 
             return res.status(200).json({
                 sucesso: true,
+                mensagem: "Status do local atualizado com sucesso.",
                 dados: local
             });
+
         } catch (erro) {
             return this.tratarErro(erro, res);
         }

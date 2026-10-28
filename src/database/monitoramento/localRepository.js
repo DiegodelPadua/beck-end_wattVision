@@ -1,4 +1,4 @@
-
+// Importa a conexão com o banco de dados MySQL.
 import database from "../../config/database.js";
 
 // ==========================================
@@ -6,21 +6,17 @@ import database from "../../config/database.js";
 // ==========================================
 // Responsável pelas consultas SQL da tabela
 // tbl_local, utilizando parâmetros seguros.
+//
+// Alterações para o novo schema:
+// - Coluna "descricao" foi removida.
+// - Colunas "codigo", "endereco" e "responsavel" foram adicionadas.
 
 class LocalRepository {
 
-    // Lista todos os locais cadastrados.
+    // Lista os locais cadastrados.
     async listarTodos() {
         const [locais] = await database.query(`
-            SELECT
-                id,
-                id_empresa,
-                codigo,
-                nome,
-                endereco,
-                responsavel,
-                descricao,
-                status
+            SELECT id, id_empresa, codigo, nome, endereco, responsavel, status
             FROM tbl_local
             ORDER BY nome ASC
         `);
@@ -32,15 +28,7 @@ class LocalRepository {
     async buscarPorId(id) {
         const [locais] = await database.query(
             `
-            SELECT
-                id,
-                id_empresa,
-                codigo,
-                nome,
-                endereco,
-                responsavel,
-                descricao,
-                status
+            SELECT id, id_empresa, codigo, nome, endereco, responsavel, status
             FROM tbl_local
             WHERE id = ?
             `,
@@ -60,19 +48,11 @@ class LocalRepository {
         return empresas[0] ?? null;
     }
 
-    // Busca um local pelo código.
-    // O parâmetro idIgnorar permite desconsiderar
-    // o próprio registro durante uma atualização.
-    async buscarPorCodigo(codigo, idIgnorar = null) {
+    // Verifica se já existe um local com o código informado.
+    async buscarPorCodigo(codigo) {
         const [locais] = await database.query(
-            `
-            SELECT id, codigo
-            FROM tbl_local
-            WHERE codigo = ?
-              AND (? IS NULL OR id <> ?)
-            LIMIT 1
-            `,
-            [codigo, idIgnorar, idIgnorar]
+            "SELECT id FROM tbl_local WHERE codigo = ?",
+            [codigo]
         );
 
         return locais[0] ?? null;
@@ -82,25 +62,17 @@ class LocalRepository {
     async criar(dados) {
         const [resultado] = await database.query(
             `
-            INSERT INTO tbl_local (
-                id_empresa,
-                codigo,
-                nome,
-                endereco,
-                responsavel,
-                descricao,
-                status
-            )
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO tbl_local
+                (id_empresa, codigo, nome, endereco, responsavel, status)
+            VALUES (?, ?, ?, ?, ?, ?)
             `,
             [
                 dados.id_empresa,
                 dados.codigo,
                 dados.nome,
-                dados.endereco ?? null,
-                dados.responsavel ?? null,
-                dados.descricao ?? null,
-                dados.status ?? "Ativo"
+                dados.endereco,
+                dados.responsavel,
+                dados.status
             ]
         );
 
@@ -112,13 +84,11 @@ class LocalRepository {
         const [resultado] = await database.query(
             `
             UPDATE tbl_local
-            SET
-                id_empresa = ?,
+            SET id_empresa = ?,
                 codigo = ?,
                 nome = ?,
                 endereco = ?,
                 responsavel = ?,
-                descricao = ?,
                 status = ?
             WHERE id = ?
             `,
@@ -126,9 +96,8 @@ class LocalRepository {
                 dados.id_empresa,
                 dados.codigo,
                 dados.nome,
-                dados.endereco ?? null,
-                dados.responsavel ?? null,
-                dados.descricao ?? null,
+                dados.endereco,
+                dados.responsavel,
                 dados.status,
                 id
             ]

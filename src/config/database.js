@@ -42,6 +42,19 @@ const database = mysql.createPool({
     // Quantidade máxima de conexões simultâneas no pool.
     connectionLimit: 10,
 
+    // ==========================================
+    // CONFIGURAÇÃO DE DATAS DO MYSQL
+    // ==========================================
+    // Mantém os campos DATE, DATETIME e TIMESTAMP
+    // como strings, evitando conversões automáticas
+    // para objetos Date do JavaScript.
+    //
+    // Exemplo:
+    // MySQL: 2026-10-28 08:00:00
+    // API:   2026-10-28 08:00:00
+
+    dateStrings: true,
+
     // Quantidade máxima de requisições aguardando conexão.
     // 0 significa sem limite definido.
     queueLimit: 0

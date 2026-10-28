@@ -1,95 +1,118 @@
-// Importa o Router do Express.
+
 import { Router } from "express";
 
-// Importa o Controller de medições.
+// ==========================================
+// WATT VISION - ROTAS DE MEDIÇÕES
+// ==========================================
+// Importa o Controller responsável pelas
+// requisições relacionadas às medições.
+
 import medicaoController
     from "../controllers/medicaoController.js";
 
+// ==========================================
+// CRIAÇÃO DO ROTEADOR
+// ==========================================
+// O prefixo /api/medicoes é registrado
+// no arquivo src/routes/index.js.
 
-// Cria o roteador.
 const router = Router();
 
-
 // ==========================================
-// ROTAS - MEDIÇÕES
-// ==========================================
-
-
 // GET /api/medicoes
-//
-// Retorna todas as medições.
+// ==========================================
+// Lista todas as medições armazenadas
+// no banco de dados.
+
 router.get(
     "/",
-    medicaoController.listarTodas
+    (req, res) =>
+        medicaoController.listarTodas(req, res)
 );
 
 // ==========================================
 // GET /api/medicoes/ultima
 // ==========================================
-// Retorna a medição mais recente do banco.
-// Deve ser declarada antes de futuras rotas
-// dinâmicas, como GET /:id.
+// Retorna a medição mais recente.
 
 router.get(
     "/ultima",
-    medicaoController.buscarUltima
+    (req, res) =>
+        medicaoController.buscarUltima(req, res)
 );
-
 
 // ==========================================
 // GET /api/medicoes/resumo
 // ==========================================
-// Fornece os indicadores elétricos para
-// os cards do dashboard.
+// Retorna os indicadores utilizados
+// pelos cards do dashboard.
 
 router.get(
     "/resumo",
-    medicaoController.obterResumo
+    (req, res) =>
+        medicaoController.obterResumo(req, res)
 );
-
 
 // ==========================================
 // GET /api/medicoes/serie-temporal
 // ==========================================
-// Consulta medições de um PZEM por período.
-// Exemplo: ?id_pzem=1&horas=24
+// Consulta o histórico de um PZEM.
+//
+// Parâmetros:
+// id_pzem - Identificador do sensor
+// horas   - Período de 1 a 168 horas
 
 router.get(
     "/serie-temporal",
-    medicaoController.obterSerieTemporal
+    (req, res) =>
+        medicaoController.obterSerieTemporal(req, res)
 );
-
 
 // ==========================================
 // GET /api/medicoes/ponto/:id/ultima
 // ==========================================
-// Retorna a última medição de cada PZEM
-// associado ao ponto de medição informado.
+// Retorna a última leitura de cada
+// PZEM associada ao ponto informado.
 
 router.get(
     "/ponto/:id/ultima",
-    medicaoController.buscarUltimasPorPonto
+    (req, res) =>
+        medicaoController.buscarUltimasPorPonto(req, res)
 );
 
 // ==========================================
 // GET /api/medicoes/consumo
 // ==========================================
-// Calcula consumo e custo por PZEM e período.
+// Calcula consumo em kWh e custo estimado.
+//
+// Parâmetros:
+// id_pzem - Identificador do sensor
+// inicio  - Data inicial YYYY-MM-DD
+// fim     - Data final YYYY-MM-DD
 
 router.get(
     "/consumo",
-    medicaoController.consultarConsumo
+    (req, res) =>
+        medicaoController.consultarConsumo(req, res)
 );
 
-
+// ==========================================
 // POST /api/medicoes
+// ==========================================
+// Cadastra uma leitura elétrica.
 //
-// Cadastra uma nova medição.
+// O corpo da requisição deve conter
+// o ID do PZEM, data e grandezas elétricas.
+
 router.post(
     "/",
-    medicaoController.criar
+    (req, res) =>
+        medicaoController.criar(req, res)
 );
 
+// ==========================================
+// EXPORTAÇÃO DAS ROTAS
+// ==========================================
+// Disponibiliza o roteador para o index.js.
 
-// Exporta o Router.
 export default router;

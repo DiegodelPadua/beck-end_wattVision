@@ -1,63 +1,99 @@
 
-/**
- * ==========================================
- * WATT VISION - ROTAS PRINCIPAIS DA API
- * ==========================================
- *
- * Este arquivo centraliza as rotas dos
- * diferentes módulos do backend.
- */
-
-// Importa o Router do Express.
 import { Router } from "express";
 
 // ==========================================
-// IMPORTAÇÃO DAS ROTAS
+// WATT VISION - IMPORTAÇÃO DAS ROTAS
 // ==========================================
+// Cada módulo possui seu próprio arquivo
+// de rotas, Controller, Service e Repository.
 
-// Rotas responsáveis pelas medições elétricas.
+// Rotas responsáveis pelos registros
+// de consumo e grandezas elétricas.
 import medicaoRoutes from "./medicaoRoutes.js";
 
-// Rotas responsáveis pelos locais.
+// Rotas de gerenciamento dos locais
+// pertencentes às empresas cadastradas.
 import localRoutes from "./localRoutes.js";
 
-// Rotas responsáveis pelos setores.
+// Rotas de gerenciamento dos setores
+// vinculados aos locais.
 import setorRoutes from "./setorRoutes.js";
 
-// Rotas responsáveis pelos equipamentos.
+// Rotas de cadastro e gerenciamento
+// dos equipamentos monitorados.
 import equipamentoRoutes from "./equipamentoRoutes.js";
 
-// ==========================================
-// CRIAÇÃO DO ROTEADOR PRINCIPAL
-// ==========================================
+// Rotas dos pontos que associam dispositivos
+// IoT a locais, setores ou equipamentos.
+import pontoMedicaoRoutes from "./pontoMedicaoRoutes.js";
 
-// O router deve ser criado ANTES de registrar
-// qualquer rota com router.use().
+// Rotas de cadastro e gerenciamento dos
+// dispositivos ESP32 do Watt Vision.
+import dispositivoIotRoutes from "./dispositivoIotRoutes.js";
+
+// ==========================================
+// NOVO MÓDULO - SENSORES PZEM
+// ==========================================
+// Importa os endpoints responsáveis pelo
+// gerenciamento dos sensores PZEM-004T.
+import pzemRoutes from "./pzemRoutes.js";
+
+// ==========================================
+// ROTEADOR PRINCIPAL DA APLICAÇÃO
+// ==========================================
+// Organiza todos os módulos em um único
+// roteador utilizado pelo app.js.
+
 const router = Router();
 
 // ==========================================
-// REGISTRO DAS ROTAS
+// REGISTRO DAS ROTAS - MEDIÇÕES
 // ==========================================
-
-// Endpoints de medições.
-// Exemplo: GET /api/medicoes
+// Endereço: /api/medicoes
 router.use("/medicoes", medicaoRoutes);
 
-// Endpoints de locais.
-// Exemplo: GET /api/locais
+// ==========================================
+// REGISTRO DAS ROTAS - LOCAIS
+// ==========================================
+// Endereço: /api/locais
 router.use("/locais", localRoutes);
 
-// Endpoints de setores.
-// Exemplo: GET /api/setores
+// ==========================================
+// REGISTRO DAS ROTAS - SETORES
+// ==========================================
+// Endereço: /api/setores
 router.use("/setores", setorRoutes);
 
-// Endpoints de equipamentos.
-// Exemplo: GET /api/equipamentos
+// ==========================================
+// REGISTRO DAS ROTAS - EQUIPAMENTOS
+// ==========================================
+// Endereço: /api/equipamentos
 router.use("/equipamentos", equipamentoRoutes);
+
+// ==========================================
+// REGISTRO DAS ROTAS - PONTOS DE MEDIÇÃO
+// ==========================================
+// Endereço: /api/pontos-medicao
+router.use("/pontos-medicao", pontoMedicaoRoutes);
+
+// ==========================================
+// REGISTRO DAS ROTAS - DISPOSITIVOS IOT
+// ==========================================
+// Endereço: /api/dispositivos-iot
+router.use("/dispositivos-iot", dispositivoIotRoutes);
+
+// ==========================================
+// REGISTRO DAS ROTAS - SENSORES PZEM
+// ==========================================
+// Endereço: /api/pzems
+//
+// Disponibiliza operações de cadastro,
+// consulta, atualização, status e exclusão.
+router.use("/pzems", pzemRoutes);
 
 // ==========================================
 // EXPORTAÇÃO DO ROTEADOR
 // ==========================================
+// Exporta todas as rotas para o app.js.
 
-// Disponibiliza o roteador para o app.js.
 export default router;

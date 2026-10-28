@@ -4,20 +4,29 @@ import setorRepository from "../database/monitoramento/setorRepository.js";
 // ==========================================
 // SERVICE - SETORES
 // ==========================================
-// Valida os dados e aplica as regras
-// de negócio dos setores.
+// Responsável pelas validações e regras
+// de negócio do gerenciamento de setores.
 
 class SetorService {
 
-    // Cria erros com códigos HTTP.
+    // Cria erros com códigos HTTP definidos.
     criarErro(mensagem, status = 400) {
         const erro = new Error(mensagem);
         erro.status = status;
         return erro;
     }
 
-    // Valida IDs recebidos nas requisições.
+    // Valida identificadores positivos.
     validarId(valor) {
+        if (
+            valor === null ||
+            valor === undefined ||
+            typeof valor === "boolean" ||
+            (typeof valor === "string" && !valor.trim())
+        ) {
+            throw this.criarErro("Identificador inválido.");
+        }
+
         const id = Number(valor);
 
         if (!Number.isSafeInteger(id) || id <= 0) {
@@ -27,130 +36,271 @@ class SetorService {
         return id;
     }
 
-    // Valida os campos do setor.
-    async validarDados(dados) {
+    // Valida campos obrigatórios.
+    validarTextoObrigatorio(valor, campo, limite) {
         if (
-            typeof dados?.nome !== "string" ||
-            !dados.nome.trim() ||
-            dados.nome.trim().length > 100
+            typeof valor !== "string" ||
+            !valor.trim() ||
+            valor.trim().length > limite
         ) {
             throw this.criarErro(
-                "O nome deve conter entre 1 e 100 caracteres."
+                `${campo} deve conter entre 1 e ${limite} caracteres.`
             );
         }
 
-        const descricao = dados.descricao ?? null;
+        return valor.trim();
+    }
 
-        if (
-            descricao !== null &&
-            (typeof descricao !== "string" ||
-             descricao.length > 255)
-        ) {
-            throw this.criarErro("Descrição inválida.");
+    // Valida campos opcionais.
+    validarTextoOpcional(valor, campo, limite) {
+        if (valor === null || valor === undefined) {
+            return null;
         }
 
-        const status = dados.status ?? "ATIVO";
-
-        if (!["ATIVO", "INATIVO"].includes(status)) {
+        if (
+            typeof valor !== "string" ||
+            valor.trim().length > limite
+        ) {
             throw this.criarErro(
-                "O status deve ser ATIVO ou INATIVO."
+                `${campo} deve conter no máximo ${limite} caracteres.`
             );
         }
 
-        const idLocal = this.validarId(dados.id_local);
+        return valor.trim() || null;
+    }
 
-        // Verifica se o setor está associado
-        // a um local realmente cadastrado.
-        const local =
-            await setorRepository.buscarLocalPorId(idLocal);
+    // Valida o status do setor.
+    validarStatus(status) {
+        if (!["Ativo", "Inativo"].includes(status)) {
+            throw this.criarErro(
+                "O status deve ser Ativo ou Inativo."
+            );
+        }
+
+        return status;
+    }
+
+    // ======================================
+    // VALIDAÇÃO DOS DADOS DO SETOR
+    // ======================================
+    async validarDados(dados, idAtual = null) {
+
+        if (
+            !dados ||
+            typeof dados !== "object" ||
+            Array.isArray(dados)
+        ) {
+            throw this.criarErro(
+                "Os dados do setor são obrigatórios."
+            );
+        }
+
+        // CÓDIGO
+        const codigo = this.validarTextoObrigatorio(
+            dados.codigo,
+            "O código",
+            20
+        );
+
+        // NOME
+        const nome = this.validarTextoObrigatorio(
+            dados.nome,
+            "O nome",
+            100
+        );
+
+        // RESPONSÁVEL
+        const responsavel = this.validarTextoOpcional(
+            dados.responsavel,
+            "O responsável",
+            100
+        );
+
+        // DESCRIÇÃO
+        const descricao = this.validarTextoOpcional(
+            dados.descricao,
+            "A descrição",
+            255
+        );
+
+        // STATUS
+        const status = this.validarStatus(
+            dados.status ?? "Ativo"
+        );
+
+        // LOCAL
+        const idLocal = this.validarId(
+            dados.id_local
+        );
+
+        const local = await setorRepository.buscarLocalPorId(
+            idLocal
+        );
 
         if (!local) {
-            throw this.criarErro("Local não encontrado.", 404);
+            throw this.criarErro(
+                "Local não encontrado.",
+                404
+            );
         }
 
-        // Não permite criar ou mover um setor ativo
-        // para um local que esteja inativo.
-        if (status === "ATIVO" && local.status !== "ATIVO") {
+        // Impede setor ativo em local inativo.
+        if (
+            status === "Ativo" &&
+            local.status !== "Ativo"
+        ) {
             throw this.criarErro(
                 "Não é possível manter um setor ativo em um local inativo."
             );
         }
 
+        // CÓDIGO ÚNICO
+        const existente = await setorRepository.buscarPorCodigo(
+            codigo,
+            idAtual
+        );
+
+        if (existente) {
+            throw this.criarErro(
+                `Já existe um setor com o código "${codigo}".`,
+                409
+            );
+        }
+
         return {
-            nome: dados.nome.trim(),
+            id_local: idLocal,
+            codigo,
+            nome,
+            responsavel,
             descricao,
-            status,
-            id_local: idLocal
+            status
         };
     }
 
-    // Lista todos os setores.
+    // ======================================
+    // GET - LISTAR TODOS
+    // ======================================
     async listarTodos() {
         return setorRepository.listarTodos();
     }
 
-    // Busca um setor pelo ID.
+    // ======================================
+    // GET - BUSCAR POR ID
+    // ======================================
     async buscarPorId(id) {
-        const setor =
-            await setorRepository.buscarPorId(this.validarId(id));
+        const idValidado = this.validarId(id);
+
+        const setor = await setorRepository.buscarPorId(
+            idValidado
+        );
 
         if (!setor) {
-            throw this.criarErro("Setor não encontrado.", 404);
+            throw this.criarErro(
+                "Setor não encontrado.",
+                404
+            );
         }
 
         return setor;
     }
 
-    // Lista os setores de determinado local.
+    // ======================================
+    // GET - LISTAR POR LOCAL
+    // ======================================
     async listarPorLocal(idLocal) {
-        const id = this.validarId(idLocal);
+        const idValidado = this.validarId(idLocal);
 
-        const local = await setorRepository.buscarLocalPorId(id);
+        const local = await setorRepository.buscarLocalPorId(
+            idValidado
+        );
 
         if (!local) {
-            throw this.criarErro("Local não encontrado.", 404);
+            throw this.criarErro(
+                "Local não encontrado.",
+                404
+            );
         }
 
-        return setorRepository.listarPorLocal(id);
+        return setorRepository.listarPorLocal(
+            idValidado
+        );
     }
 
-    // Cadastra um novo setor.
+    // ======================================
+    // POST - CADASTRAR SETOR
+    // ======================================
     async criar(dados) {
         const setor = await this.validarDados(dados);
-        return setorRepository.criar(setor);
+
+        try {
+            return await setorRepository.criar(setor);
+        } catch (erro) {
+            if (erro.code === "ER_DUP_ENTRY") {
+                throw this.criarErro(
+                    "Já existe um setor cadastrado com este código.",
+                    409
+                );
+            }
+
+            throw erro;
+        }
     }
 
-    // Atualiza os dados de um setor.
+    // ======================================
+    // PUT - ATUALIZAR SETOR
+    // ======================================
     async atualizar(id, dados) {
         const idValidado = this.validarId(id);
 
         await this.buscarPorId(idValidado);
 
-        const setor = await this.validarDados(dados);
+        const setor = await this.validarDados(
+            dados,
+            idValidado
+        );
 
-        await setorRepository.atualizar(idValidado, setor);
+        try {
+            await setorRepository.atualizar(
+                idValidado,
+                setor
+            );
+        } catch (erro) {
+            if (erro.code === "ER_DUP_ENTRY") {
+                throw this.criarErro(
+                    "Já existe um setor cadastrado com este código.",
+                    409
+                );
+            }
+
+            throw erro;
+        }
 
         return setorRepository.buscarPorId(idValidado);
     }
 
-    // Altera o status de um setor.
+    // ======================================
+    // PATCH - ATUALIZAR STATUS
+    // ======================================
     async atualizarStatus(id, status) {
         const idValidado = this.validarId(id);
 
-        const setor = await this.buscarPorId(idValidado);
+        const setor = await this.buscarPorId(
+            idValidado
+        );
 
-        if (!["ATIVO", "INATIVO"].includes(status)) {
-            throw this.criarErro("Status inválido.");
-        }
+        const statusValidado = this.validarStatus(
+            status
+        );
 
-        // Para reativar, o local também deve estar ativo.
-        if (status === "ATIVO") {
+        // Para ativar um setor, o local
+        // ao qual pertence precisa estar ativo.
+        if (statusValidado === "Ativo") {
             const local =
                 await setorRepository.buscarLocalPorId(
                     setor.id_local
                 );
 
-            if (local.status !== "ATIVO") {
+            if (!local || local.status !== "Ativo") {
                 throw this.criarErro(
                     "Ative o local antes de reativar o setor."
                 );
@@ -159,7 +309,7 @@ class SetorService {
 
         await setorRepository.atualizarStatus(
             idValidado,
-            status
+            statusValidado
         );
 
         return setorRepository.buscarPorId(idValidado);

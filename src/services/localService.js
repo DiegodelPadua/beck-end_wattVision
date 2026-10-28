@@ -1,11 +1,11 @@
-
+// Importa o Repository responsável
+// pelas operações da tabela tbl_local.
 import localRepository from "../database/monitoramento/localRepository.js";
 
 // ==========================================
 // SERVICE - LOCAIS
 // ==========================================
-// Contém as validações e regras de negócio
-// para o cadastro e gerenciamento de locais.
+// Contém as validações e regras de negócio.
 
 class LocalService {
 
@@ -20,139 +20,82 @@ class LocalService {
     validarId(valor) {
         const id = Number(valor);
 
-        if (
-            valor === null ||
-            valor === undefined ||
-            typeof valor === "boolean" ||
-            (typeof valor === "string" && !valor.trim()) ||
-            !Number.isSafeInteger(id) ||
-            id <= 0
-        ) {
+        if (!Number.isSafeInteger(id) || id <= 0) {
             throw this.criarErro("Identificador inválido.");
         }
 
         return id;
     }
 
-    // Valida os valores permitidos para status.
-    validarStatus(status) {
+    // Valida e prepara os dados de um local.
+    // O parâmetro "idAtual" serve para não
+    // conflitar com o próprio registro na edição.
+    async validarDados(dados, idAtual = null) {
+
+        // CÓDIGO
+        const codigo = dados?.codigo?.trim();
+
+        if (!codigo || codigo.length > 20) {
+            throw this.criarErro(
+                "O código deve conter entre 1 e 20 caracteres."
+            );
+        }
+
+        // NOME
+        const nome = dados?.nome?.trim();
+
+        if (!nome || nome.length > 100) {
+            throw this.criarErro(
+                "O nome deve conter entre 1 e 100 caracteres."
+            );
+        }
+
+        // ENDEREÇO
+        const endereco = dados.endereco ?? null;
+
+        if (
+            endereco !== null &&
+            (typeof endereco !== "string" ||
+             endereco.length > 255)
+        ) {
+            throw this.criarErro("Endereço inválido.");
+        }
+
+        // RESPONSÁVEL
+        const responsavel = dados.responsavel ?? null;
+
+        if (
+            responsavel !== null &&
+            (typeof responsavel !== "string" ||
+             responsavel.length > 100)
+        ) {
+            throw this.criarErro("Responsável inválido.");
+        }
+
+        // STATUS
+        const status = dados.status ?? "Ativo";
+
         if (!["Ativo", "Inativo"].includes(status)) {
             throw this.criarErro(
                 "O status deve ser Ativo ou Inativo."
             );
         }
 
-        return status;
-    }
+        // EMPRESA
+        const idEmpresa = this.validarId(dados.id_empresa);
 
-    // Valida um campo de texto obrigatório.
-    validarTextoObrigatorio(valor, campo, limite) {
-        if (
-            typeof valor !== "string" ||
-            !valor.trim() ||
-            valor.trim().length > limite
-        ) {
-            throw this.criarErro(
-                `${campo} deve conter entre 1 e ${limite} caracteres.`
-            );
-        }
-
-        return valor.trim();
-    }
-
-    // Valida um campo de texto opcional.
-    validarTextoOpcional(valor, campo, limite) {
-        if (valor === null || valor === undefined) {
-            return null;
-        }
-
-        if (
-            typeof valor !== "string" ||
-            valor.trim().length > limite
-        ) {
-            throw this.criarErro(
-                `${campo} deve conter no máximo ${limite} caracteres.`
-            );
-        }
-
-        return valor.trim() || null;
-    }
-
-    // Valida e prepara os dados de um local.
-    async validarDados(dados, idIgnorar = null) {
-        if (
-            !dados ||
-            typeof dados !== "object" ||
-            Array.isArray(dados)
-        ) {
-            throw this.criarErro(
-                "Os dados do local são obrigatórios."
-            );
-        }
-
-        // Código obrigatório e único.
-        const codigo = this.validarTextoObrigatorio(
-            dados.codigo,
-            "O código",
-            20
-        );
-
-        // Nome obrigatório.
-        const nome = this.validarTextoObrigatorio(
-            dados.nome,
-            "O nome",
-            100
-        );
-
-        // Campos opcionais.
-        const endereco = this.validarTextoOpcional(
-            dados.endereco,
-            "O endereço",
-            255
-        );
-
-        const responsavel = this.validarTextoOpcional(
-            dados.responsavel,
-            "O responsável",
-            100
-        );
-
-        const descricao = this.validarTextoOpcional(
-            dados.descricao,
-            "A descrição",
-            255
-        );
-
-        // Status do local.
-        const status = this.validarStatus(
-            dados.status ?? "Ativo"
-        );
-
-        // Validação da empresa.
-        const idEmpresa = this.validarId(
-            dados.id_empresa
-        );
-
-        const empresa =
-            await localRepository.buscarEmpresaPorId(idEmpresa);
+        const empresa = await localRepository.buscarEmpresaPorId(idEmpresa);
 
         if (!empresa) {
-            throw this.criarErro(
-                "Empresa não encontrada.",
-                404
-            );
+            throw this.criarErro("Empresa não encontrada.", 404);
         }
 
-        // Verifica duplicidade de código.
-        const localExistente =
-            await localRepository.buscarPorCodigo(
-                codigo,
-                idIgnorar
-            );
+        // CÓDIGO ÚNICO
+        const existente = await localRepository.buscarPorCodigo(codigo);
 
-        if (localExistente) {
+        if (existente && existente.id !== idAtual) {
             throw this.criarErro(
-                "Já existe um local cadastrado com este código.",
+                `Já existe um local com o código "${codigo}".`,
                 409
             );
         }
@@ -163,7 +106,6 @@ class LocalService {
             nome,
             endereco,
             responsavel,
-            descricao,
             status
         };
     }
@@ -175,16 +117,10 @@ class LocalService {
 
     // Consulta um local específico.
     async buscarPorId(id) {
-        const idValidado = this.validarId(id);
-
-        const local =
-            await localRepository.buscarPorId(idValidado);
+        const local = await localRepository.buscarPorId(this.validarId(id));
 
         if (!local) {
-            throw this.criarErro(
-                "Local não encontrado.",
-                404
-            );
+            throw this.criarErro("Local não encontrado.", 404);
         }
 
         return local;
@@ -193,19 +129,7 @@ class LocalService {
     // Cadastra um novo local.
     async criar(dados) {
         const local = await this.validarDados(dados);
-
-        try {
-            return await localRepository.criar(local);
-        } catch (erro) {
-            if (erro.code === "ER_DUP_ENTRY") {
-                throw this.criarErro(
-                    "Já existe um local cadastrado com este código.",
-                    409
-                );
-            }
-
-            throw erro;
-        }
+        return localRepository.criar(local);
     }
 
     // Atualiza um local existente.
@@ -214,26 +138,9 @@ class LocalService {
 
         await this.buscarPorId(idValidado);
 
-        const local = await this.validarDados(
-            dados,
-            idValidado
-        );
+        const local = await this.validarDados(dados, idValidado);
 
-        try {
-            await localRepository.atualizar(
-                idValidado,
-                local
-            );
-        } catch (erro) {
-            if (erro.code === "ER_DUP_ENTRY") {
-                throw this.criarErro(
-                    "Já existe um local cadastrado com este código.",
-                    409
-                );
-            }
-
-            throw erro;
-        }
+        await localRepository.atualizar(idValidado, local);
 
         return localRepository.buscarPorId(idValidado);
     }
@@ -244,14 +151,11 @@ class LocalService {
 
         await this.buscarPorId(idValidado);
 
-        const statusValidado = this.validarStatus(
-            status
-        );
+        if (!["Ativo", "Inativo"].includes(status)) {
+            throw this.criarErro("Status inválido.");
+        }
 
-        await localRepository.atualizarStatus(
-            idValidado,
-            statusValidado
-        );
+        await localRepository.atualizarStatus(idValidado, status);
 
         return localRepository.buscarPorId(idValidado);
     }
