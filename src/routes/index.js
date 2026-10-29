@@ -48,6 +48,10 @@ import empresaRoutes from "./empresaRoutes.js";
 // Rotas de gerenciamento de tarifas de energia
 import tarifaRoutes from "./tarifaRoutes.js";
 
+
+// Rotas de limites de monitoramento
+import limiteRoutes from "./limiteRoutes.js";
+
 // ==========================================
 // ROTEADOR PRINCIPAL DA APLICAÇÃO
 // ==========================================
@@ -118,6 +122,12 @@ router.use("/empresas", empresaRoutes);
 // REGISTRO DAS ROTAS - TARIFAS
 // ==========================================
 router.use("/tarifas", tarifaRoutes);
+
+
+// ==========================================
+// REGISTRO DAS ROTAS - LIMITES
+// ==========================================
+router.use("/limites", limiteRoutes);
 
 
 
