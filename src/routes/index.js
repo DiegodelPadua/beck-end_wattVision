@@ -38,6 +38,11 @@ import dispositivoIotRoutes from "./dispositivoIotRoutes.js";
 // gerenciamento dos sensores PZEM-004T.
 import pzemRoutes from "./pzemRoutes.js";
 
+
+
+// Rotas de gerenciamento de empresas
+import empresaRoutes from "./empresaRoutes.js";
+
 // ==========================================
 // ROTEADOR PRINCIPAL DA APLICAÇÃO
 // ==========================================
@@ -90,6 +95,13 @@ router.use("/dispositivos-iot", dispositivoIotRoutes);
 // Disponibiliza operações de cadastro,
 // consulta, atualização, status e exclusão.
 router.use("/pzems", pzemRoutes);
+
+
+
+// ==========================================
+// REGISTRO DAS ROTAS - EMPRESAS
+// ==========================================
+router.use("/empresas", empresaRoutes);
 
 // ==========================================
 // EXPORTAÇÃO DO ROTEADOR
