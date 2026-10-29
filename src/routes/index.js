@@ -43,6 +43,11 @@ import pzemRoutes from "./pzemRoutes.js";
 // Rotas de gerenciamento de empresas
 import empresaRoutes from "./empresaRoutes.js";
 
+
+
+// Rotas de gerenciamento de tarifas de energia
+import tarifaRoutes from "./tarifaRoutes.js";
+
 // ==========================================
 // ROTEADOR PRINCIPAL DA APLICAÇÃO
 // ==========================================
@@ -107,5 +112,13 @@ router.use("/empresas", empresaRoutes);
 // EXPORTAÇÃO DO ROTEADOR
 // ==========================================
 // Exporta todas as rotas para o app.js.
+
+
+// ==========================================
+// REGISTRO DAS ROTAS - TARIFAS
+// ==========================================
+router.use("/tarifas", tarifaRoutes);
+
+
 
 export default router;
