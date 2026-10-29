@@ -52,6 +52,10 @@ import tarifaRoutes from "./tarifaRoutes.js";
 // Rotas de limites de monitoramento
 import limiteRoutes from "./limiteRoutes.js";
 
+
+// Rotas de gerenciamento de alertas
+import alertaRoutes from "./alertaRoutes.js";
+
 // ==========================================
 // ROTEADOR PRINCIPAL DA APLICAÇÃO
 // ==========================================
@@ -128,6 +132,12 @@ router.use("/tarifas", tarifaRoutes);
 // REGISTRO DAS ROTAS - LIMITES
 // ==========================================
 router.use("/limites", limiteRoutes);
+
+
+// ==========================================
+// REGISTRO DAS ROTAS - ALERTAS
+// ==========================================
+router.use("/alertas", alertaRoutes);
 
 
 
